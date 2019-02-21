@@ -204,8 +204,8 @@ SET @locloaddtm   = @lastmonthlyloaddtm
 		appt.APPT_CONF_USER_ID ,
 		appt.APPT_CONF_USER_NAME ,
 		appt.CHANGE_DATE ,
-		appt.UPDATE_DATE , -- DATETIME
-		appt.APPT_MADE_DTTM -- DATETIME
+		appt.UPDATE_DATE ,
+		appt.APPT_MADE_DTTM
  FROM 
  (
 /*  All scheduled appointments with patient, MyChart, encounter, department, insurance, and referral detail  */
