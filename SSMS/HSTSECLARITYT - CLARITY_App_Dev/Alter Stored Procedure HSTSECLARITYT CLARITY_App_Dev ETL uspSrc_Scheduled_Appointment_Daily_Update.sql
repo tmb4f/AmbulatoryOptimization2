@@ -7,7 +7,7 @@ GO
 SET QUOTED_IDENTIFIER ON
 GO
 
-ALTER PROCEDURE [ETL].[uspSrc_Scheduled_Appointment_Daily_Update]
+ALTER PROCEDURE [ETL].[uspLoad_Scheduled_Appointment_Daily_Update]
 (
 @startdate SMALLDATETIME=NULL,
 @enddate SMALLDATETIME=NULL,
@@ -15,7 +15,7 @@ ALTER PROCEDURE [ETL].[uspSrc_Scheduled_Appointment_Daily_Update]
 )
 AS
 /****************************************************************************************************************************************
-WHAT: Create procedure ETL.uspSrc_Scheduled_Appointment_Daily_Update
+WHAT: Create procedure ETL.uspLoad_Scheduled_Appointment_Daily_Update
 WHO : Tom Burgan
 WHEN: 01/16/2019
 WHY : Update staging table (HSTSDSSQLDMT DS_HSDM_App_Dev Stage.Scheduled_Appointment) containing Cadence scheduled appointment detail.
@@ -55,11 +55,12 @@ INFO:
 		        HSTSECLARITY.CLARITY.dbo.ZC_SER_RPT_GRP_6
 		        HSTSECLARITY.CLARITY.dbo.ZC_SER_RPT_GRP_8
                   
-      OUTPUTS:  CLARITY_App.ETL.uspSrc_Scheduled_Appointment_Daily_Update
+      OUTPUTS:  CLARITY_App.ETL.uspLoad_Scheduled_Appointment_Daily_Update
    
 ----------------------------------------------------------------------------------------------------------------------------------------
 MODS: 	01/16/2019--TMB--Create stored procedure
         02/21/2019--TMB--Edit extract sort
+		02/22/2019--TMB--Change stored procedure name
 *****************************************************************************************************************************************/
 
 SET NOCOUNT ON;
@@ -80,8 +81,6 @@ SET @locstartdate = @startdate
 SET @locenddate   = @enddate
 SET @locloaddtm   = @lastmonthlyloaddtm
 ------------------------------------------------------------------------------------------------------
-
-
 
  SELECT appt.PAT_ENC_CSN_ID ,
         appt.PAT_ID ,
