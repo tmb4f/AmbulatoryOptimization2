@@ -96,6 +96,10 @@ INSERT INTO Stage.Scheduled_Appointment_Daily_Update
     LOC_NAME,
     SERV_AREA_ID,
     APPT_STATUS_FLAG,
+	Load_Dtm,
+	sk_Dim_Pt,
+	sk_Fact_Pt_Enc_Clrt,
+	sk_Fact_Pt_Acct,
     VIS_NEW_TO_SPEC_YN,
     VIS_NEW_TO_SERV_AREA_YN,
     VIS_NEW_TO_LOC_YN,
@@ -210,10 +214,10 @@ SELECT 100010118388 AS [PAT_ENC_CSN_ID]
       ,[LOC_NAME]
       ,[SERV_AREA_ID]
       ,[APPT_STATUS_FLAG]
-      --,[Load_Dtm]
-      --,[sk_Dim_Pt]
-      --,[sk_Fact_Pt_Enc_Clrt]
-      --,[sk_Fact_Pt_Acct]
+      ,[Load_Dtm]
+      ,[sk_Dim_Pt]
+      ,[sk_Fact_Pt_Enc_Clrt]
+      ,[sk_Fact_Pt_Acct]
       ,[VIS_NEW_TO_SPEC_YN]
       ,[VIS_NEW_TO_SERV_AREA_YN]
       ,[VIS_NEW_TO_LOC_YN]
