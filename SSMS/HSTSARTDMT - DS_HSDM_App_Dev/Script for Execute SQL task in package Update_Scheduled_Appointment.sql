@@ -91,7 +91,10 @@ THEN UPDATE SET Target.PAT_ID = Source.PAT_ID
 			   ,Target.LOC_NAME = Source.LOC_NAME
 			   ,Target.SERV_AREA_ID = Source.SERV_AREA_ID
 			   ,Target.APPT_STATUS_FLAG = Source.APPT_STATUS_FLAG
-			   ,Target.Load_Dtm = CAST(GETDATE() AS SMALLDATETIME)
+			   ,Target.Load_Dtm = Source.Load_Dtm
+			   ,Target.sk_Dim_Pt = Source.sk_Dim_Pt
+			   ,Target.sk_Fact_Pt_Enc_Clrt = Source.sk_Fact_Pt_Enc_Clrt
+			   ,Target.sk_Fact_Pt_Acct = Source.sk_Fact_Pt_Acct
 			   ,Target.VIS_NEW_TO_SPEC_YN = Source.VIS_NEW_TO_SPEC_YN
 			   ,Target.VIS_NEW_TO_SERV_AREA_YN = Source.VIS_NEW_TO_SERV_AREA_YN
 			   ,Target.VIS_NEW_TO_LOC_YN = Source.VIS_NEW_TO_LOC_YN
@@ -324,10 +327,10 @@ THEN INSERT ([PAT_ENC_CSN_ID]
             ,Source.[LOC_NAME]
             ,Source.[SERV_AREA_ID]
             ,Source.[APPT_STATUS_FLAG]
-			,CAST(GETDATE() AS SMALLDATETIME)
-			,CAST(NULL AS INTEGER)
-			,CAST(NULL AS INTEGER)
-			,CAST(NULL AS INTEGER)
+			,Source.[Load_Dtm]
+			,Source.[sk_Dim_Pt]
+			,Source.[sk_Fact_Pt_Enc_Clrt]
+			,Source.[sk_Fact_Pt_Acct]
             ,Source.[VIS_NEW_TO_SPEC_YN]
             ,Source.[VIS_NEW_TO_SERV_AREA_YN]
             ,Source.[VIS_NEW_TO_LOC_YN]
