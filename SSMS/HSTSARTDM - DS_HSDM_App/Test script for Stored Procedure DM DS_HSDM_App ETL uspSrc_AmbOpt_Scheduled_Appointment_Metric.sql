@@ -584,8 +584,8 @@ FROM
 				   wd.Clrt_Financial_Division_Name AS w_financial_division_name,
 				   wd.Clrt_Financial_SubDivision AS w_financial_sub_division_id,
 				   wd.Clrt_Financial_SubDivision_Name AS w_financial_sub_division_name,
-				   CAST(loc.LOC_ID AS VARCHAR(66)) AS w_rev_location_id,
-				   CAST(dep.Clrt_DEPt_Loctn_Nme AS VARCHAR(254)) AS w_rev_location_name,
+				   CAST(appts.LOC_ID AS VARCHAR(66)) AS w_rev_location_id,
+				   CAST(appts.LOC_NAME AS VARCHAR(254)) AS w_rev_location_name,
 				   CAST(NULL AS VARCHAR(66)) AS w_som_group_id,
 				   CAST(NULL AS VARCHAR(66)) AS w_som_department_id,
 				   CAST(NULL AS VARCHAR(66)) AS w_som_division_id
@@ -663,17 +663,6 @@ FROM
 					WHERE sk_Dim_Physcn > 0
 				) wd
 				    ON wd.sk_Dim_Physcn = ser.sk_Dim_Physcn
-				LEFT OUTER JOIN DS_HSDW_Prod.Rptg.vwDim_Clrt_DEPt dep
-				    ON dep.DEPARTMENT_ID = appts.DEPARTMENT_ID
-				LEFT OUTER JOIN
-				(
-					SELECT DISTINCT LOC_ID
-					              , LOC_Abbrv
-					FROM DS_HSDW_Prod.Rptg.vwDim_Clrt_LOCtn
-					WHERE LOC_Nme IS NOT NULL
-					AND LOC_Nme <> 'Unknown'
-				) loc
-					ON loc.LOC_Abbrv = dep.Clrt_DEPt_Loctn_Abbrv
 
             WHERE (appts.APPT_DT >= @locstartdate
               AND appts.APPT_DT < @locenddate)
