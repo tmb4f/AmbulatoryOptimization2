@@ -10,10 +10,10 @@ GO
 DECLARE @startdate SMALLDATETIME
        ,@enddate SMALLDATETIME
 
-SET @startdate = NULL
-SET @enddate = NULL
---SET @startdate = '2/3/2019 00:00 AM'
---SET @enddate = '2/9/2019 11:59 PM'
+--SET @startdate = NULL
+--SET @enddate = NULL
+SET @startdate = '2/3/2019 00:00 AM'
+SET @enddate = '2/9/2019 11:59 PM'
 
 --ALTER PROCEDURE [ETL].[uspSrc_AmbOpt_Scheduled_Appointment_Metric]
 --    (
@@ -471,6 +471,7 @@ FROM
 	        main.w_financial_sub_division_id,
 	        main.w_financial_sub_division_name,
 	        main.w_rev_location_id,
+			main.w_rev_location_name,
 	        main.w_som_group_id,
 	        main.w_som_department_id,
 	        main.w_som_division_id
@@ -583,7 +584,8 @@ FROM
 				   wd.Clrt_Financial_Division_Name AS w_financial_division_name,
 				   wd.Clrt_Financial_SubDivision AS w_financial_sub_division_id,
 				   wd.Clrt_Financial_SubDivision_Name AS w_financial_sub_division_name,
-				   CAST(NULL AS VARCHAR(66)) AS w_rev_location_id,
+				   CAST(loc.LOC_ID AS VARCHAR(66)) AS w_rev_location_id,
+				   CAST(dep.Clrt_DEPt_Loctn_Nme AS VARCHAR(254)) AS w_rev_location_name,
 				   CAST(NULL AS VARCHAR(66)) AS w_som_group_id,
 				   CAST(NULL AS VARCHAR(66)) AS w_som_department_id,
 				   CAST(NULL AS VARCHAR(66)) AS w_som_division_id
@@ -661,6 +663,17 @@ FROM
 					WHERE sk_Dim_Physcn > 0
 				) wd
 				    ON wd.sk_Dim_Physcn = ser.sk_Dim_Physcn
+				LEFT OUTER JOIN DS_HSDW_Prod.Rptg.vwDim_Clrt_DEPt dep
+				    ON dep.DEPARTMENT_ID = appts.DEPARTMENT_ID
+				LEFT OUTER JOIN
+				(
+					SELECT DISTINCT LOC_ID
+					              , LOC_Abbrv
+					FROM DS_HSDW_Prod.Rptg.vwDim_Clrt_LOCtn
+					WHERE LOC_Nme IS NOT NULL
+					AND LOC_Nme <> 'Unknown'
+				) loc
+					ON loc.LOC_Abbrv = dep.Clrt_DEPt_Loctn_Abbrv
 
             WHERE (appts.APPT_DT >= @locstartdate
               AND appts.APPT_DT < @locenddate)
@@ -688,7 +701,9 @@ FROM #metric
 --ORDER BY ENC_TYPE_TITLE
 --ORDER BY event_date,
 --         PAT_ENC_CSN_ID
-ORDER BY w_financial_division_id,
+--ORDER BY w_financial_division_id,
+--         event_date
+ORDER BY PAT_ENC_CSN_ID,
          event_date
 
 GO
