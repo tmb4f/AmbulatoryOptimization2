@@ -11,6 +11,9 @@ DECLARE @startdate SMALLDATETIME = NULL,
         @enddate SMALLDATETIME = NULL--,
         --@dt SMALLINT = NULL
 
+SET @startdate = '2/3/2019 00:00 AM'
+SET @enddate = '2/9/2019 11:59 PM'
+
 --EXEC [ETL].[uspSrc_AmbOpt_HARVerif]
 
 --ALTER PROCEDURE [ETL].[uspSrc_AmbOpt_HARVerif] 
@@ -73,9 +76,10 @@ DECLARE @startdate SMALLDATETIME = NULL,
 --                              -- include late provider-initiated cancellations in the denominator
 --         01/16/2019 - Tom     -- filter excluded departments
 --         01/31/2019 - Tom     -- add code to set values for wrapper columns "peds" and "transplant"
---         03/01/2019 - Tom     -- exclude appointments created within 5 days of the appointment date
+--         03/14/2019 - Tom     -- exclude appointments created within 5 days of the appointment date
 --                              -- remove parameter for days between HAR Verification date and appointment date
 --                              -- add column APPT_MADE_DTTM, calculated column [HAR Verification DATEDIFF]
+--                              -- add new standard columns
 --************************************************************************************************************************
 
 SET NOCOUNT ON;
@@ -96,8 +100,7 @@ DECLARE @locstartdate SMALLDATETIME
        ,@locdt        INT;
 SET @locstartdate = @startdate;
 SET @locenddate = @enddate;
---SET @locdt = @dt;
-SET @locdt = 5;
+SET @locdt = 5; -- 3/14/2019 Tom Default days between HAR Verification date and appointment date for scorecard
 -------------------------------------------------------------------------------
 
 
@@ -198,7 +201,7 @@ SELECT DISTINCT
 
                                                                                                                                                  --Provider/scheduler info
 
-                   ,appt.VISIT_PROV_ID                                                                                       AS provier_id
+                   ,appt.VISIT_PROV_ID                                                                                       AS provider_id
                    ,ser.PROV_NAME                                                                                            AS provider_Name
                    ,CAST(ser.RPT_GRP_FIVE AS VARCHAR(150))                                                                   AS prov_serviceline --service line
                    ,CAST(NULL AS INT)                                                                                        AS practice_group_id
@@ -217,8 +220,10 @@ SELECT DISTINCT
 
                                                                                                                                                  --fac-org info
                    ,mdm.epic_department_id
-                   ,mdm.epic_department_name
-                   ,mdm.epic_department_name_external
+                   --,mdm.epic_department_name
+                   --,mdm.epic_department_name_external
+                   ,mdm.EPIC_DEPT_NAME                                                                                       AS epic_department_name
+                   ,mdm.EPIC_EXT_NAME                                                                                        AS epic_department_name_external
                    ,CAST(dep.RPT_GRP_SIX AS VARCHAR(55))                                                                     AS pod_id
                    ,CAST(pod.NAME AS VARCHAR(100))                                                                           AS pod_name         -- pod
                    ,CAST(dep.RPT_GRP_SEVEN AS VARCHAR(55))                                                                   AS hub_id           -- hub
@@ -233,8 +238,20 @@ SELECT DISTINCT
                    ,mdm.corp_service_line                                                                                    AS corp_service_line_name
                    ,mdm.hs_area_id                                                                                           AS hs_area_id
                    ,mdm.hs_area_name                                                                                         AS hs_area_name
-				   ,DATEDIFF(DAY, harvrf.LAST_STAT_CHNG_DTTM, appt.APPT_TIME)                                                AS [HAR Verification DATEDIFF]
-				   ,appt.APPT_MADE_DTTM
+				   ,DATEDIFF(DAY, harvrf.LAST_STAT_CHNG_DTTM, appt.APPT_TIME)                                                AS [HAR Verification DATEDIFF] -- INTEGER
+				   ,appt.APPT_MADE_DTTM -- DATETIME
+				   ,NULL                                                                                                     AS w_som_group_id
+				   ,NULL                                                                                                     AS w_som_group_name
+				   ,mdm.LOC_ID                                                                                               AS w_rev_location_id
+				   ,mdm.REV_LOC_NAME                                                                                         AS w_rev_name
+				   ,wd.Clrt_Financial_Division                                                                               AS w_financial_division_id
+				   ,wd.Clrt_Financial_Division_Name                                                                          AS w_financial_division_name
+				   ,wd.Clrt_Financial_SubDivision                                                                            AS w_financial_sub_division_id
+				   ,wd.Clrt_Financial_SubDivision_Name                                                                       AS w_financial_sub_division_name
+				   ,wd.SOM_DEPT_ID                                                                                           AS w_som_department_id
+				   ,NULL                                                                                                     AS w_som_department_name
+				   ,wd.wd_Dept_Code                                                                                          AS w_som_division_id
+				   ,wd.wd_Department_Name                                                                                    AS w_som_division_name
 
 FROM                CLARITY_App.dbo.Dim_Date                           AS dmdt
     LEFT OUTER JOIN
@@ -244,7 +261,6 @@ FROM                CLARITY_App.dbo.Dim_Date                           AS dmdt
                                       ,acct.ACCT_FIN_CLASS_C
 									  ,sched.APPT_CANC_DTTM
 									  ,sched.APPT_MADE_DTTM
-
                         FROM           CLARITY.dbo.PAT_ENC       AS enc					--12/17/2018 -Tom B Replaced V_SCHED_APPT with PAT_ENC
                             INNER JOIN CLARITY.dbo.HSP_ACCOUNT_3 AS har ON har.HSP_ACCOUNT_ID = enc.HSP_ACCOUNT_ID
                             INNER JOIN CLARITY.dbo.HSP_ACCOUNT   AS acct ON har.HSP_ACCOUNT_ID = acct.HSP_ACCOUNT_ID
@@ -350,11 +366,10 @@ FROM                CLARITY_App.dbo.Dim_Date                           AS dmdt
     ----------------------------	
 
     ---BDD 6/8/2018 changed below to use the distinct view
-    --	LEFT OUTER JOIN CLARITY_App.Rptg.vwRef_MDM_Location_Master mdm				ON mdm.EPIC_DEPARTMENT_ID = appt.DEPARTMENT_ID
+    LEFT OUTER JOIN CLARITY_App.Rptg.vwRef_MDM_Location_Master mdm				ON mdm.EPIC_DEPARTMENT_ID = appt.DEPARTMENT_ID
 
-    LEFT OUTER JOIN CLARITY_App.Rptg.vwRef_MDM_Location_Master_EpicSvc AS mdm ON mdm.epic_department_id = appt.DEPARTMENT_ID
-
-
+    --LEFT OUTER JOIN CLARITY_App.Rptg.vwRef_MDM_Location_Master_EpicSvc AS mdm ON mdm.epic_department_id = appt.DEPARTMENT_ID
+	
     LEFT OUTER JOIN CLARITY.dbo.CLARITY_EPP                            AS epp ON epp.BENEFIT_PLAN_ID = cvg.PLAN_ID
 
     LEFT OUTER JOIN CLARITY.dbo.CLARITY_EPM                            AS epm ON epm.PAYOR_ID = cvg.PAYOR_ID
@@ -391,12 +406,11 @@ FROM                CLARITY_App.dbo.Dim_Date                           AS dmdt
                 -- -------------------------------------
     LEFT OUTER JOIN Stage.AmbOpt_Excluded_Department                    AS excl ON excl.DEPARTMENT_ID = appt.DEPARTMENT_ID
 
+	LEFT OUTER JOIN Rptg.vwRef_Crosswalk_HSEntity_Prov                  AS wd ON wd.dim_Physcn_PROV_ID = appt.VISIT_PROV_ID
+
 WHERE               1 = 1
 
-
---AND                 DATEDIFF(DAY, appt.APPT_MADE_DTTM, appt.APPT_TIME) >= 0
---AND                 DATEDIFF(DAY, appt.APPT_MADE_DTTM, appt.APPT_TIME) < @locdt
-AND                 DATEDIFF(DAY, appt.APPT_MADE_DTTM, appt.APPT_TIME) >= @locdt
+AND                 DATEDIFF(DAY, appt.APPT_MADE_DTTM, appt.APPT_TIME) >= @locdt -- 3/14/2019 Tom Exclude appointments created within 5 days of appointment date
 AND                 dmdt.day_date >= @locstartdate
 AND                 dmdt.day_date < @locenddate
 AND                 excl.DEPARTMENT_ID IS NULL
