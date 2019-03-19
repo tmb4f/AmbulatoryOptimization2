@@ -11,8 +11,10 @@ DECLARE @startdate SMALLDATETIME = NULL,
         @enddate SMALLDATETIME = NULL--,
         --@dt SMALLINT = NULL
 
-SET @startdate = '2/3/2019 00:00 AM'
-SET @enddate = '2/9/2019 11:59 PM'
+--SET @startdate = '2/3/2019 00:00 AM'
+--SET @enddate = '2/9/2019 11:59 PM'
+--SET @startdate = '7/1/2018 00:00 AM'
+--SET @enddate = '6/30/2019 11:59 PM'
 
 --EXEC [ETL].[uspSrc_AmbOpt_HARVerif]
 
@@ -49,7 +51,7 @@ SET @enddate = '2/9/2019 11:59 PM'
 --				CLARITY.dbo.VERIF_ENC_CVGS	 cvgvrf
 --				CLARITY_App.Rptg.vwRef_MDM_Location_Master mdm
 --				CLARITY.dbo.CLARITY_EPP_2 epp
---				LARITY.dbo.PAT_ENC
+--				CLARITY.dbo.PAT_ENC
 --                
 --      OUTPUTS:  [ETL].[uspSrc_AmbOpt_HARVerif]
 --					
@@ -103,6 +105,14 @@ SET @locenddate = @enddate;
 SET @locdt = 5; -- 3/14/2019 Tom Default days between HAR Verification date and appointment date for scorecard
 -------------------------------------------------------------------------------
 
+if OBJECT_ID('tempdb..#HAR') is not NULL
+DROP TABLE #HAR
+
+if OBJECT_ID('tempdb..#HAR2') is not NULL
+DROP TABLE #HAR2
+
+if OBJECT_ID('tempdb..#HAR3') is not NULL
+DROP TABLE #HAR3
 
 SELECT DISTINCT
     --flags	
@@ -155,6 +165,7 @@ SELECT DISTINCT
 
                                                                                                                                                  --patient info
                    ,appt.PAT_ENC_CSN_ID
+				   ,wd.dim_Physcn_PROV_ID
                    ,appt.PAT_ID                                                                                              AS PAT_id
                    ,PATIENT.PAT_NAME                                                                                         AS person_name
                    ,CAST(idx.IDENTITY_ID AS VARCHAR(50))                                                                     AS person_id        --MRN ---BDD 10/11/2018 cast for epic upgrade
@@ -252,6 +263,9 @@ SELECT DISTINCT
 				   ,NULL                                                                                                     AS w_som_department_name
 				   ,wd.wd_Dept_Code                                                                                          AS w_som_division_id
 				   ,wd.wd_Department_Name                                                                                    AS w_som_division_name
+				   ,wd.wd_Is_Primary_Job
+
+INTO                #HAR
 
 FROM                CLARITY_App.dbo.Dim_Date                           AS dmdt
     LEFT OUTER JOIN
@@ -305,6 +319,7 @@ FROM                CLARITY_App.dbo.Dim_Date                           AS dmdt
                        -- AND            acct.ACCT_BASECLS_HA_C = '2' --outpatient				--12/13/2018 -Mali remove filter for Outpatient per request from KF ****
                         AND            enc.APPT_TIME >= @locstartdate
                         AND            enc.APPT_TIME < @locenddate
+						--AND            enc.VISIT_PROV_ID IN ('91274','93744')
                     )                                                  AS appt ON CAST(appt.APPT_TIME AS DATE) = CAST(dmdt.day_date AS DATE)
 
     LEFT OUTER JOIN CLARITY.dbo.CLARITY_DEP                            AS dep ON dep.DEPARTMENT_ID = appt.DEPARTMENT_ID
@@ -324,6 +339,10 @@ FROM                CLARITY_App.dbo.Dim_Date                           AS dmdt
 
     LEFT OUTER JOIN CLARITY.dbo.IDENTITY_ID                            AS idx ON  idx.PAT_ID = appt.PAT_ID
                                                                               AND idx.IDENTITY_TYPE_ID = 14
+
+    LEFT OUTER JOIN CLARITY.dbo.IDENTITY_SER_ID                        AS isi ON  isi.PROV_ID = ser.PROV_ID -- 03/15/2019 -Tom B Add to extract IDENTITY_ID for join to Dim_Physcn
+                                                                              AND isi.IDENTITY_TYPE_ID = 6
+                                                                              AND TRY_CONVERT(INT,isi.IDENTITY_ID) IS NOT NULL
 
     LEFT OUTER JOIN CLARITY.dbo.ZC_MYCHART_STATUS                      AS mych ON mych.MYCHART_STATUS_C = PATIENT_MYC.MYCHART_STATUS_C
 
@@ -360,7 +379,7 @@ FROM                CLARITY_App.dbo.Dim_Date                           AS dmdt
                         AND                 appt2.APPT_TIME >= @locstartdate
                         AND                 appt2.APPT_TIME < @locenddate
 						AND                 vrxhx2.VERIF_DATE_HX_DTTM <= appt2.APPT_TIME
-                    )                                                  AS vrxhx ON  vrxhx.PAT_ENC_CSN_ID = appt.PAT_ENC_CSN_ID --01/07/2019 -Tom B link latest verification to encounter
+                    )                                                  AS vrxhx ON  vrxhx.PAT_ENC_CSN_ID = appt.PAT_ENC_CSN_ID -- 01/07/2019 -Tom B link latest verification to encounter
                                                                                 --AND vrxhx.RECORD_ID = memlst.MEM_VERIFICATION_ID -- 01/07/2019 -Tom B removed respective join
                                                                                 AND vrxhx.Rw = '1' --last updated within the date range
     ----------------------------	
@@ -384,6 +403,10 @@ FROM                CLARITY_App.dbo.Dim_Date                           AS dmdt
 	LEFT OUTER JOIN CLARITY.dbo.CLARITY_EMP								AS harvrxuser	ON appt.APPT_ENTRY_USER_ID=harvrxuser.USER_ID
 
 	LEFT OUTER JOIN CLARITY.dbo.ZC_GUAR_VERIF_STAT						AS vrxsts		ON harvrf.VERIF_STATUS_C=vrxsts.GUAR_VERIF_STAT_C
+					   
+	--LEFT OUTER JOIN dbo.Dim_Physcn                                      AS dp ON isi.IDENTITY_ID = dp.IDNumber -- 03/15/2019 -Tom B Add to extract key for join to vwRef_Crosswalk_HSEntity_Prov
+ --                                                                             AND dp.current_flag = 1
+
 ------
 
 -- Identify transplant encounter
@@ -406,7 +429,21 @@ FROM                CLARITY_App.dbo.Dim_Date                           AS dmdt
                 -- -------------------------------------
     LEFT OUTER JOIN Stage.AmbOpt_Excluded_Department                    AS excl ON excl.DEPARTMENT_ID = appt.DEPARTMENT_ID
 
-	LEFT OUTER JOIN Rptg.vwRef_Crosswalk_HSEntity_Prov                  AS wd ON wd.dim_Physcn_PROV_ID = appt.VISIT_PROV_ID
+	LEFT OUTER JOIN (SELECT DISTINCT
+	                    dim_Physcn_PROV_ID
+					   ,Clrt_Financial_Division
+					   ,Clrt_Financial_Division_Name
+					   ,Clrt_Financial_SubDivision
+					   ,Clrt_Financial_SubDivision_Name
+					   ,SOM_DEPT_ID
+					   ,wd_Dept_Code
+					   ,wd_Department_Name
+					   ,wd_Is_Primary_Job
+					 FROM
+					   Rptg.vwRef_Crosswalk_HSEntity_Prov
+					 WHERE
+					   ISNULL(wd_Is_Primary_Job,1) = 1
+					   AND Som_DEPT_ID IS NOT NULL) AS wd ON wd.dim_Physcn_PROV_ID = CAST(isi.IDENTITY_ID AS INTEGER)
 
 WHERE               1 = 1
 
@@ -414,8 +451,46 @@ AND                 DATEDIFF(DAY, appt.APPT_MADE_DTTM, appt.APPT_TIME) >= @locdt
 AND                 dmdt.day_date >= @locstartdate
 AND                 dmdt.day_date < @locenddate
 AND                 excl.DEPARTMENT_ID IS NULL
+AND                 mdm.LOC_ID <> '10376'
+AND                 appt.VISIT_PROV_ID = '61341'
 
-ORDER BY            event_date;
+--ORDER BY            event_date;
+
+SELECT *
+FROM #HAR
+--WHERE provider_id IN ('61341','91274','93744')
+ORDER BY PAT_ENC_CSN_ID
+--ORDER BY provider_id, PAT_ENC_CSN_ID
+
+--SELECT PAT_ENC_CSN_ID
+SELECT *
+     --, ROW_NUMBER() OVER (PARTITION BY PAT_ENC_CSN_ID ORDER BY w_som_division_id) AS [EncSeq]
+     , ROW_NUMBER() OVER (PARTITION BY PAT_ENC_CSN_ID ORDER BY w_rev_name) AS [EncSeq]
+INTO #HAR2
+FROM #HAR
+
+SELECT *
+FROM #HAR2
+ORDER BY PAT_ENC_CSN_ID
+        --, w_som_division_id
+        , w_rev_name
+		, EncSeq
+
+SELECT DISTINCT PAT_ENC_CSN_ID
+INTO #HAR3
+FROM #HAR2
+WHERE [EncSeq] > 1
+
+SELECT *
+FROM #HAR3
+ORDER BY PAT_ENC_CSN_ID
+/*
+SELECT har.*
+FROM #HAR har
+INNER JOIN #HAR3 har3
+ON har.PAT_ENC_CSN_ID = har3.PAT_ENC_CSN_ID
+ORDER BY            har.dim_Physcn_PROV_ID, PAT_ENC_CSN_ID;
+*/
 GO
 
 

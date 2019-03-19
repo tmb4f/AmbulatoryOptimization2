@@ -580,13 +580,14 @@ FROM
 				   cancemp.EMPlye_Systm_Login AS Canc_UVaID,
 				   appts.PHONE_REM_STAT_NAME,
 				   appts.CHANGE_DATE,
+				   NULL AS w_som_group_id,
+				   NULL AS w_som_group_name,
+				   mdmloc.LOC_ID AS w_rev_location_id,
+				   mdmloc.REV_LOC_NAME AS w_rev_location_name,
 				   wd.Clrt_Financial_Division AS w_financial_division_id,
 				   wd.Clrt_Financial_Division_Name AS w_financial_division_name,
 				   wd.Clrt_Financial_SubDivision AS w_financial_sub_division_id,
 				   wd.Clrt_Financial_SubDivision_Name AS w_financial_sub_division_name,
-				   CAST(appts.LOC_ID AS VARCHAR(66)) AS w_rev_location_id,
-				   CAST(appts.LOC_NAME AS VARCHAR(254)) AS w_rev_location_name,
-				   CAST(NULL AS VARCHAR(66)) AS w_som_group_id,
 				   CAST(NULL AS VARCHAR(66)) AS w_som_department_id,
 				   CAST(NULL AS VARCHAR(66)) AS w_som_division_id
 
@@ -603,7 +604,9 @@ FROM
                         EPIC_DEPARTMENT_ID,
                         SERVICE_LINE,
                         PFA_POD,
-                        HUB
+                        HUB,
+						LOC_ID,
+						REV_LOC_NAME
                     FROM DS_HSDW_Prod.Rptg.vwRef_MDM_Location_Master
                 ) AS mdmloc
                     ON appts.DEPARTMENT_ID = mdmloc.EPIC_DEPARTMENT_ID
