@@ -11,10 +11,10 @@ DECLARE @startdate SMALLDATETIME = NULL,
         @enddate SMALLDATETIME = NULL--,
         --@dt SMALLINT = NULL
 
---SET @startdate = '2/3/2019 00:00 AM'
---SET @enddate = '2/9/2019 11:59 PM'
-SET @startdate = '7/1/2018 00:00 AM'
-SET @enddate = '6/30/2019 11:59 PM'
+SET @startdate = '2/3/2019 00:00 AM'
+SET @enddate = '2/9/2019 11:59 PM'
+--SET @startdate = '7/1/2018 00:00 AM'
+--SET @enddate = '6/30/2019 11:59 PM'
 
 --EXEC [ETL].[uspSrc_AmbOpt_HARVerif]
 
@@ -165,7 +165,9 @@ SELECT DISTINCT
 
                                                                                                                                                  --patient info
                    ,appt.PAT_ENC_CSN_ID
-				   --,wd.dim_Physcn_PROV_ID
+				   ,CAST(isi.IDENTITY_ID AS INTEGER) AS IDENTITY_ID
+				   ,uwd.sk_Dim_Physcn
+				   ,uwd.dim_Physcn_PROV_ID
                    ,appt.PAT_ID                                                                                              AS PAT_id
                    ,PATIENT.PAT_NAME                                                                                         AS person_name
                    ,CAST(idx.IDENTITY_ID AS VARCHAR(50))                                                                     AS person_id        --MRN ---BDD 10/11/2018 cast for epic upgrade
@@ -214,6 +216,8 @@ SELECT DISTINCT
 
                    ,appt.VISIT_PROV_ID                                                                                       AS provider_id
                    ,ser.PROV_NAME                                                                                            AS provider_Name
+				   ,ser.PROV_TYPE                                                                                            AS provider_Type
+				   ,ser.CLINICIAN_TITLE
                    ,CAST(ser.RPT_GRP_FIVE AS VARCHAR(150))                                                                   AS prov_serviceline --service line
                    ,CAST(NULL AS INT)                                                                                        AS practice_group_id
                    ,CAST(NULL AS VARCHAR(150))                                                                               AS practice_group_name
@@ -255,16 +259,15 @@ SELECT DISTINCT
 				   --,NULL                                                                                                     AS w_som_group_name
 				   ,mdm.LOC_ID                                                                                               AS w_rev_location_id
 				   ,mdm.REV_LOC_NAME                                                                                         AS w_rev_name
-				   --,wd.Clrt_Financial_Division                                                                               AS w_financial_division_id
-				   --,wd.Clrt_Financial_Division_Name                                                                          AS w_financial_division_name
-				   --,wd.Clrt_Financial_SubDivision                                                                            AS w_financial_sub_division_id
-				   --,wd.Clrt_Financial_SubDivision_Name                                                                       AS w_financial_sub_division_name
-				   --,wd.SOM_DEPT_ID                                                                                           AS w_som_department_id
-				   --,NULL                                                                                                     AS w_som_department_name
-				   --,wd.wd_Dept_Code                                                                                          AS w_som_division_id
-				   --,wd.wd_Department_Name                                                                                    AS w_som_division_name
-				   --,wd.wd_Is_Primary_Job
-				   ,CAST(isi.IDENTITY_ID AS INTEGER) AS IDENTITY_ID
+				   ,uwd.Clrt_Financial_Division                                                                               AS w_financial_division_id
+				   ,uwd.Clrt_Financial_Division_Name                                                                          AS w_financial_division_name
+				   ,uwd.Clrt_Financial_SubDivision                                                                            AS w_financial_sub_division_id
+				   ,uwd.Clrt_Financial_SubDivision_Name                                                                       AS w_financial_sub_division_name
+				   ,uwd.SOM_DEPT_ID                                                                                           AS w_som_department_id
+				   ,NULL                                                                                                     AS w_som_department_name
+				   ,uwd.wd_Dept_Code                                                                                          AS w_som_division_id
+				   ,uwd.wd_Department_Name                                                                                    AS w_som_division_name
+				   ,uwd.wd_Is_Primary_Job
 
 INTO                #HAR
 
@@ -342,8 +345,8 @@ FROM                CLARITY_App.dbo.Dim_Date                           AS dmdt
                                                                               AND idx.IDENTITY_TYPE_ID = 14
 
     LEFT OUTER JOIN CLARITY.dbo.IDENTITY_SER_ID                        AS isi ON  isi.PROV_ID = ser.PROV_ID -- 03/15/2019 -Tom B Add to extract IDENTITY_ID for join to Dim_Physcn
-                                                                              AND isi.IDENTITY_TYPE_ID = 6
-                                                                              AND TRY_CONVERT(INT,isi.IDENTITY_ID) IS NOT NULL
+                                                                              AND isi.IDENTITY_TYPE_ID = 6 -- IDNumber
+                                                                              AND TRY_CONVERT(INT,isi.IDENTITY_ID) IS NOT NULL -- exclude IDs with alpha characters
 
     LEFT OUTER JOIN CLARITY.dbo.ZC_MYCHART_STATUS                      AS mych ON mych.MYCHART_STATUS_C = PATIENT_MYC.MYCHART_STATUS_C
 
@@ -405,8 +408,8 @@ FROM                CLARITY_App.dbo.Dim_Date                           AS dmdt
 
 	LEFT OUTER JOIN CLARITY.dbo.ZC_GUAR_VERIF_STAT						AS vrxsts		ON harvrf.VERIF_STATUS_C=vrxsts.GUAR_VERIF_STAT_C
 					   
-	--LEFT OUTER JOIN dbo.Dim_Physcn                                      AS dp ON isi.IDENTITY_ID = dp.IDNumber -- 03/15/2019 -Tom B Add to extract key for join to vwRef_Crosswalk_HSEntity_Prov
- --                                                                             AND dp.current_flag = 1
+	LEFT OUTER JOIN dbo.Dim_Physcn                                      AS dp ON isi.IDENTITY_ID = dp.IDNumber -- 03/15/2019 -Tom B Add to extract key for join to vwRef_Crosswalk_HSEntity_Prov
+                                                                              AND dp.current_flag = 1
 
 ------
 
@@ -430,12 +433,109 @@ FROM                CLARITY_App.dbo.Dim_Date                           AS dmdt
                 -- -------------------------------------
     LEFT OUTER JOIN Stage.AmbOpt_Excluded_Department                    AS excl ON excl.DEPARTMENT_ID = appt.DEPARTMENT_ID
 
+	LEFT OUTER JOIN
+	                (
+					    SELECT				sk_Dim_Physcn
+						                   ,dim_Physcn_PROV_ID
+						                   ,SOMSeq
+										   ,Clrt_Financial_Division
+										   ,Clrt_Financial_Division_Name
+										   ,Clrt_Financial_SubDivision
+										   ,Clrt_Financial_SubDivision_Name
+										   ,SOM_DEPT_ID
+										   ,wd_Dept_Code
+										   ,wd_Department_Name
+										   ,wd_Is_Primary_Job
+					    FROM                (
+						                        SELECT DISTINCT		sk_Dim_Physcn
+												                   ,dim_Physcn_PROV_ID
+												                   --,ROW_NUMBER() OVER (PARTITION BY dim_Physcn_PROV_ID ORDER BY cw_Legacy_src_system) AS [SOMSeq]
+												                   ,ROW_NUMBER() OVER (PARTITION BY sk_Dim_Physcn ORDER BY cw_Legacy_src_system) AS [SOMSeq]
+																   ,Clrt_Financial_Division
+																   ,Clrt_Financial_Division_Name
+																   ,Clrt_Financial_SubDivision
+																   ,Clrt_Financial_SubDivision_Name
+																   ,SOM_DEPT_ID
+																   ,wd_Dept_Code
+																   ,wd_Department_Name
+																   ,wd_Is_Primary_Job
+					                            FROM				Rptg.vwRef_Crosswalk_HSEntity_Prov
+												WHERE				ISNULL(wd_Is_Primary_Job,1) = 1
+																	--AND Som_DEPT_ID IS NOT NULL
+											) wd
+					--)													AS uwd ON uwd.dim_Physcn_PROV_ID = CAST(isi.IDENTITY_ID AS INTEGER)
+					)													AS uwd ON uwd.sk_Dim_Physcn = dp.sk_Dim_Physcn
+																				  AND uwd.SOMSeq = 1
+
+WHERE               1 = 1
+
+AND                 DATEDIFF(DAY, appt.APPT_MADE_DTTM, appt.APPT_TIME) >= @locdt -- 3/14/2019 Tom Exclude appointments created within 5 days of appointment date
+AND                 dmdt.day_date >= @locstartdate
+AND                 dmdt.day_date < @locenddate
+AND                 excl.DEPARTMENT_ID IS NULL
+--AND                 mdm.LOC_ID <> '10376'
+--AND                 appt.VISIT_PROV_ID = '61341'
+
+--ORDER BY            event_date;
+
+SELECT *
+--SELECT DISTINCT
+--	event_type
+--   ,IDENTITY_ID
+--   ,sk_Dim_Physcn
+--   ,dim_Physcn_PROV_ID
+--   ,provider_id
+--   ,provider_Name
+--   ,provider_Type
+--   ,CLINICIAN_TITLE
+--   ,w_financial_division_id
+--   ,w_financial_division_name
+--   ,w_som_department_id
+FROM #HAR
+--WHERE provider_id IN ('61341','91274','93744')
+--ORDER BY PAT_ENC_CSN_ID
+--ORDER BY provider_id, PAT_ENC_CSN_ID
+--ORDER BY dim_Physcn_PROV_ID
+--       , IDENTITY_ID
+--       , PAT_ENC_CSN_ID
+--ORDER BY dim_Physcn_PROV_ID
+--       , IDENTITY_ID
+--ORDER BY w_financial_division_id
+--       , provider_id
+ORDER BY sk_Dim_Physcn, PAT_ENC_CSN_ID
+
+SELECT har.PAT_ENC_CSN_ID
+      ,har.w_rev_name
+	  --,wd.dim_Physcn_PROV_ID
+	  --,wd.Clrt_Financial_Division
+	  --,wd.Clrt_Financial_Division_Name
+	  --,wd.Clrt_Financial_SubDivision
+	  --,wd.Clrt_Financial_SubDivision_Name
+	  --,wd.SOM_DEPT_ID
+	  --,wd.wd_Dept_Code
+	  --,wd.wd_Department_Name
+	  --,wd.wd_Is_Primary_Job
+	  ,har.sk_Dim_Physcn
+	  ,dim_Physcn_PROV_ID
+	  ,har.w_financial_division_id
+	  ,har.w_financial_division_name
+	  ,har.w_financial_sub_division_id
+	  ,har.w_financial_sub_division_name
+	  ,har.w_som_department_id
+	  ,har.w_som_division_id
+	  ,har.w_som_division_name
+	  ,har.wd_Is_Primary_Job
+--SELECT *
+     --, ROW_NUMBER() OVER (PARTITION BY PAT_ENC_CSN_ID ORDER BY w_som_division_id) AS [EncSeq]
+     , ROW_NUMBER() OVER (PARTITION BY har.PAT_ENC_CSN_ID ORDER BY har.w_rev_name) AS [EncSeq]
+INTO #HAR2
+FROM #HAR har
 	--LEFT OUTER JOIN (SELECT DISTINCT
 	--                    dim_Physcn_PROV_ID
-	--				   ,Clrt_Financial_Division
-	--				   ,Clrt_Financial_Division_Name
-	--				   ,Clrt_Financial_SubDivision
-	--				   ,Clrt_Financial_SubDivision_Name
+	--				   --,Clrt_Financial_Division
+	--				   --,Clrt_Financial_Division_Name
+	--				   --,Clrt_Financial_SubDivision
+	--				   --,Clrt_Financial_SubDivision_Name
 	--				   ,SOM_DEPT_ID
 	--				   ,wd_Dept_Code
 	--				   ,wd_Department_Name
@@ -444,58 +544,9 @@ FROM                CLARITY_App.dbo.Dim_Date                           AS dmdt
 	--				   Rptg.vwRef_Crosswalk_HSEntity_Prov
 	--				 WHERE
 	--				   ISNULL(wd_Is_Primary_Job,1) = 1
-	--				   AND Som_DEPT_ID IS NOT NULL) AS wd ON wd.dim_Physcn_PROV_ID = CAST(isi.IDENTITY_ID AS INTEGER)
-
-WHERE               1 = 1
-
-AND                 DATEDIFF(DAY, appt.APPT_MADE_DTTM, appt.APPT_TIME) >= @locdt -- 3/14/2019 Tom Exclude appointments created within 5 days of appointment date
-AND                 dmdt.day_date >= @locstartdate
-AND                 dmdt.day_date < @locenddate
-AND                 excl.DEPARTMENT_ID IS NULL
-AND                 mdm.LOC_ID <> '10376'
---AND                 appt.VISIT_PROV_ID = '61341'
-
---ORDER BY            event_date;
-
-SELECT *
-FROM #HAR
---WHERE provider_id IN ('61341','91274','93744')
-ORDER BY PAT_ENC_CSN_ID
---ORDER BY provider_id, PAT_ENC_CSN_ID
-
-SELECT har.PAT_ENC_CSN_ID
-      ,har.w_rev_name
-	  ,wd.dim_Physcn_PROV_ID
-	  --,wd.Clrt_Financial_Division
-	  --,wd.Clrt_Financial_Division_Name
-	  --,wd.Clrt_Financial_SubDivision
-	  --,wd.Clrt_Financial_SubDivision_Name
-	  ,wd.SOM_DEPT_ID
-	  ,wd.wd_Dept_Code
-	  ,wd.wd_Department_Name
-	  ,wd.wd_Is_Primary_Job
---SELECT *
-     --, ROW_NUMBER() OVER (PARTITION BY PAT_ENC_CSN_ID ORDER BY w_som_division_id) AS [EncSeq]
-     , ROW_NUMBER() OVER (PARTITION BY har.PAT_ENC_CSN_ID ORDER BY har.w_rev_name) AS [EncSeq]
-INTO #HAR2
-FROM #HAR har
-	LEFT OUTER JOIN (SELECT DISTINCT
-	                    dim_Physcn_PROV_ID
-					   --,Clrt_Financial_Division
-					   --,Clrt_Financial_Division_Name
-					   --,Clrt_Financial_SubDivision
-					   --,Clrt_Financial_SubDivision_Name
-					   ,SOM_DEPT_ID
-					   ,wd_Dept_Code
-					   ,wd_Department_Name
-					   ,wd_Is_Primary_Job
-					 FROM
-					   Rptg.vwRef_Crosswalk_HSEntity_Prov
-					 WHERE
-					   ISNULL(wd_Is_Primary_Job,1) = 1
-					   AND Som_DEPT_ID IS NOT NULL
-					   --Som_DEPT_ID IS NOT NULL
-					) AS wd ON wd.dim_Physcn_PROV_ID = har.IDENTITY_ID
+	--				   AND Som_DEPT_ID IS NOT NULL
+	--				   --Som_DEPT_ID IS NOT NULL
+	--				) AS wd ON wd.dim_Physcn_PROV_ID = har.IDENTITY_ID
 
 SELECT *
 FROM #HAR2
@@ -503,20 +554,25 @@ FROM #HAR2
 --        --, w_som_division_id
 --        , w_rev_name
 --		, EncSeq
-ORDER BY dim_Physcn_PROV_ID
+--ORDER BY dim_Physcn_PROV_ID
+--       , PAT_ENC_CSN_ID
+--       --, w_som_division_id
+--       , w_rev_name
+--	   , EncSeq
+ORDER BY sk_Dim_Physcn
        , PAT_ENC_CSN_ID
        --, w_som_division_id
        , w_rev_name
 	   , EncSeq
 
-SELECT DISTINCT PAT_ENC_CSN_ID
+SELECT DISTINCT sk_Dim_Physcn, PAT_ENC_CSN_ID
 INTO #HAR3
 FROM #HAR2
 WHERE [EncSeq] > 1
 
 SELECT *
 FROM #HAR3
-ORDER BY PAT_ENC_CSN_ID
+ORDER BY sk_Dim_Physcn, PAT_ENC_CSN_ID
 /*
 SELECT har.*
 FROM #HAR har
@@ -524,6 +580,7 @@ INNER JOIN #HAR3 har3
 ON har.PAT_ENC_CSN_ID = har3.PAT_ENC_CSN_ID
 ORDER BY            har.dim_Physcn_PROV_ID, PAT_ENC_CSN_ID;
 */
+
 GO
 
 
