@@ -2,7 +2,7 @@
 #*.xlsx
 #*.csv
 # ignore Word documents
-#*.docx
+*.docx
 # ignore Text documents
 #*.rpt
 #*.txt
