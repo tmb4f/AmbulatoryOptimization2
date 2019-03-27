@@ -68,9 +68,10 @@ AS
 --                              -- include late provider-initiated cancellations in the denominator
 --         01/16/2019 - Tom     -- filter excluded departments
 --         01/31/2019 - Tom     -- add code to set values for wrapper columns "peds" and "transplant"
---         03/01/2019 - Tom     -- exclude appointments created within 5 days of the appointment date
+--         03/26/2019 - Tom     -- exclude appointments created within 5 days of the appointment date
 --                              -- remove parameter for days between HAR Verification date and appointment date
 --                              -- add column APPT_MADE_DTTM, calculated column [HAR Verification DATEDIFF]
+--                              -- add new standard columns
 --************************************************************************************************************************
 
 SET NOCOUNT ON;
@@ -87,9 +88,8 @@ DECLARE @locstartdate SMALLDATETIME
        ,@locdt        INT;
 SET @locstartdate = @startdate;
 SET @locenddate = @enddate;
-SET @locdt = 5; -- 3/4/2019 Tom Default days between HAR Verification date and appointment date for scorecard
+SET @locdt = 5; -- 3/26/2019 Tom Default days between HAR Verification date and appointment date for scorecard
 -------------------------------------------------------------------------------
-
 
 SELECT DISTINCT
     --flags	
@@ -225,6 +225,19 @@ SELECT DISTINCT
                    ,mdm.hs_area_name                                                                                         AS hs_area_name
 				   ,DATEDIFF(DAY, harvrf.LAST_STAT_CHNG_DTTM, appt.APPT_TIME)                                                AS [HAR Verification DATEDIFF] -- INTEGER
 				   ,appt.APPT_MADE_DTTM -- DATETIME
+				   ,dp.sk_Dim_Physcn -- INTEGER
+				   ,NULL                                                                                                     AS w_som_group_id
+				   ,NULL                                                                                                     AS w_som_group_name
+				   ,mdm.LOC_ID                                                                                               AS w_rev_location_id
+				   ,mdm.REV_LOC_NAME                                                                                         AS w_rev_name
+				   ,uwd.Clrt_Financial_Division                                                                              AS w_financial_division_id
+				   ,uwd.Clrt_Financial_Division_Name                                                                         AS w_financial_division_name
+				   ,uwd.Clrt_Financial_SubDivision                                                                           AS w_financial_sub_division_id
+				   ,uwd.Clrt_Financial_SubDivision_Name                                                                      AS w_financial_sub_division_name
+				   ,uwd.SOM_DEPT_ID                                                                                          AS w_som_department_id
+				   ,NULL                                                                                                     AS w_som_department_name
+				   ,uwd.wd_Dept_Code                                                                                         AS w_som_division_id
+				   ,uwd.wd_Department_Name                                                                                   AS w_som_division_name
 
 FROM                CLARITY_App.dbo.Dim_Date                           AS dmdt
     LEFT OUTER JOIN
@@ -233,6 +246,7 @@ FROM                CLARITY_App.dbo.Dim_Date                           AS dmdt
                                       ,har.HAR_VERIFICATION_ID
                                       ,acct.ACCT_FIN_CLASS_C
 									  ,sched.APPT_CANC_DTTM
+									  ,sched.APPT_MADE_DTTM
                         FROM           CLARITY.dbo.PAT_ENC       AS enc					--12/17/2018 -Tom B Replaced V_SCHED_APPT with PAT_ENC
                             INNER JOIN CLARITY.dbo.HSP_ACCOUNT_3 AS har ON har.HSP_ACCOUNT_ID = enc.HSP_ACCOUNT_ID
                             INNER JOIN CLARITY.dbo.HSP_ACCOUNT   AS acct ON har.HSP_ACCOUNT_ID = acct.HSP_ACCOUNT_ID
@@ -297,6 +311,10 @@ FROM                CLARITY_App.dbo.Dim_Date                           AS dmdt
     LEFT OUTER JOIN CLARITY.dbo.IDENTITY_ID                            AS idx ON  idx.PAT_ID = appt.PAT_ID
                                                                               AND idx.IDENTITY_TYPE_ID = 14
 
+    LEFT OUTER JOIN CLARITY.dbo.IDENTITY_SER_ID                        AS isi ON  isi.PROV_ID = ser.PROV_ID -- 03/26/2019 -Tom B Add to extract IDENTITY_ID for join to Dim_Physcn
+                                                                              AND isi.IDENTITY_TYPE_ID = 6 -- IDNumber
+                                                                              AND TRY_CONVERT(INT,isi.IDENTITY_ID) IS NOT NULL -- exclude IDs with alpha characters
+
     LEFT OUTER JOIN CLARITY.dbo.ZC_MYCHART_STATUS                      AS mych ON mych.MYCHART_STATUS_C = PATIENT_MYC.MYCHART_STATUS_C
 
 	LEFT OUTER JOIN CLARITY.dbo.ZC_SEX                                 AS sx ON sx.RCPT_MEM_SEX_C = PATIENT.SEX_C
@@ -338,11 +356,10 @@ FROM                CLARITY_App.dbo.Dim_Date                           AS dmdt
     ----------------------------	
 
     ---BDD 6/8/2018 changed below to use the distinct view
-    --	LEFT OUTER JOIN CLARITY_App.Rptg.vwRef_MDM_Location_Master mdm				ON mdm.EPIC_DEPARTMENT_ID = appt.DEPARTMENT_ID
+    LEFT OUTER JOIN CLARITY_App.Rptg.vwRef_MDM_Location_Master         AS mdm ON mdm.EPIC_DEPARTMENT_ID = appt.DEPARTMENT_ID --03/26/2019 -Tom B Uncomment, use to get LOC_ID and REV_LOC_NAME
 
-    LEFT OUTER JOIN CLARITY_App.Rptg.vwRef_MDM_Location_Master_EpicSvc AS mdm ON mdm.epic_department_id = appt.DEPARTMENT_ID
-
-
+    --LEFT OUTER JOIN CLARITY_App.Rptg.vwRef_MDM_Location_Master_EpicSvc AS mdm ON mdm.epic_department_id = appt.DEPARTMENT_ID --03/26/2019 -Tom B Comment out
+	
     LEFT OUTER JOIN CLARITY.dbo.CLARITY_EPP                            AS epp ON epp.BENEFIT_PLAN_ID = cvg.PLAN_ID
 
     LEFT OUTER JOIN CLARITY.dbo.CLARITY_EPM                            AS epm ON epm.PAYOR_ID = cvg.PAYOR_ID
@@ -357,6 +374,10 @@ FROM                CLARITY_App.dbo.Dim_Date                           AS dmdt
 	LEFT OUTER JOIN CLARITY.dbo.CLARITY_EMP								AS harvrxuser	ON appt.APPT_ENTRY_USER_ID=harvrxuser.USER_ID
 
 	LEFT OUTER JOIN CLARITY.dbo.ZC_GUAR_VERIF_STAT						AS vrxsts		ON harvrf.VERIF_STATUS_C=vrxsts.GUAR_VERIF_STAT_C
+					   
+	LEFT OUTER JOIN dbo.Dim_Physcn                                      AS dp ON isi.IDENTITY_ID = dp.IDNumber -- 03/26/2019 -Tom B Add to extract key for join to vwRef_Crosswalk_HSEntity_Prov
+                                                                              AND dp.current_flag = 1
+
 ------
 
 -- Identify transplant encounter
@@ -379,9 +400,40 @@ FROM                CLARITY_App.dbo.Dim_Date                           AS dmdt
                 -- -------------------------------------
     LEFT OUTER JOIN Stage.AmbOpt_Excluded_Department                    AS excl ON excl.DEPARTMENT_ID = appt.DEPARTMENT_ID
 
+	LEFT OUTER JOIN -- 03/26/2019 -Tom B Add to extract standard columns from vwRef_Crosswalk_HSEntity_Prov
+	                (
+					    SELECT				sk_Dim_Physcn
+						                   ,dim_Physcn_PROV_ID
+						                   ,SOMSeq
+										   ,Clrt_Financial_Division
+										   ,Clrt_Financial_Division_Name
+										   ,Clrt_Financial_SubDivision
+										   ,Clrt_Financial_SubDivision_Name
+										   ,SOM_DEPT_ID
+										   ,wd_Dept_Code
+										   ,wd_Department_Name
+										   ,wd_Is_Primary_Job
+					    FROM                (
+						                        SELECT DISTINCT		sk_Dim_Physcn
+												                   ,dim_Physcn_PROV_ID
+												                   ,ROW_NUMBER() OVER (PARTITION BY sk_Dim_Physcn ORDER BY cw_Legacy_src_system) AS [SOMSeq]
+																   ,Clrt_Financial_Division
+																   ,Clrt_Financial_Division_Name
+																   ,Clrt_Financial_SubDivision
+																   ,Clrt_Financial_SubDivision_Name
+																   ,SOM_DEPT_ID
+																   ,wd_Dept_Code
+																   ,wd_Department_Name
+																   ,wd_Is_Primary_Job
+					                            FROM				Rptg.vwRef_Crosswalk_HSEntity_Prov
+												WHERE				ISNULL(wd_Is_Primary_Job,1) = 1
+											) wd
+					)													AS uwd ON uwd.sk_Dim_Physcn = dp.sk_Dim_Physcn
+																				  AND uwd.SOMSeq = 1
+
 WHERE               1 = 1
 
-AND                 DATEDIFF(DAY, appt.APPT_MADE_DTTM, appt.APPT_TIME) >= @locdt -- 3/4/2019 Tom Exclude appointments created within 5 days of appointment date
+AND                 DATEDIFF(DAY, appt.APPT_MADE_DTTM, appt.APPT_TIME) >= @locdt -- 3/26/2019 Tom Exclude appointments created within 5 days of appointment date
 AND                 dmdt.day_date >= @locstartdate
 AND                 dmdt.day_date < @locenddate
 AND                 excl.DEPARTMENT_ID IS NULL
