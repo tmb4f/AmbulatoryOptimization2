@@ -1,5 +1,3 @@
-/*="SELECT [sk_Dash_AmbOpt_ScheduledAppointmentMetric_Tiles], [event_date], [epic_department_id], [epic_department_name], [epic_department_name_external], [fmonth_num], [fyear_num], [fyear_name], [report_period], [sk_Dim_Pt], [sk_Fact_Pt_Acct], [sk_Fact_Pt_Enc_Clrt], [person_birth_date], [person_gender], [person_id], [person_name], [provider_id], [provider_name], [service_line], [sub_service_line], [opnl_service_name], [corp_service_line_name], [hs_area_name], [pod_name], [hub_name], [w_service_line_name], [w_sub_service_line_name], [w_opnl_service_name], [w_corp_service_line_name], [w_hs_area_name], [prov_service_line_name], [prov_hs_area_name], [APPT_STATUS_FLAG], [APPT_STATUS_C], [CANCEL_REASON_C], [MRN_int], [CONTACT_DATE], [APPT_DT], [PAT_ENC_CSN_ID], [PRC_ID], [PRC_NAME], [sk_Dim_Physcn], [UVaID], [VIS_NEW_TO_SYS_YN], [VIS_NEW_TO_DEP_YN], [VIS_NEW_TO_PROV_YN], [VIS_NEW_TO_SPEC_YN], [VIS_NEW_TO_SERV_AREA_YN], [VIS_NEW_TO_LOC_YN], [APPT_MADE_DATE], [ENTRY_DATE], [CHECKIN_DTTM], [CHECKOUT_DTTM], [VISIT_END_DTTM], [CYCLE_TIME_MINUTES]  ,CASE WHEN appt_event_Canceled = 0 OR appt_event_Canceled_Late = 1 OR (appt_event_Provider_Canceled = 1 AND Cancel_Lead_Days <= 45) THEN 1 ELSE 0 END AS [Appointment], CASE WHEN (appt_event_No_Show = 1 OR appt_event_Canceled_Late = 1) THEN 1 ELSE 0 END AS [No Show], [appt_event_No_Show], [appt_event_Canceled_Late], [appt_event_Scheduled], [appt_event_Provider_Canceled], [appt_event_Completed], [appt_event_Arrived], [appt_event_New_to_Specialty], [Appointment_Lag_Days], [CYCLE_TIME_MINUTES_Adjusted], [APPT_DTTM], [CANCEL_INITIATOR], [CANCEL_REASON_NAME], [CANCEL_LEAD_HOURS], [APPT_CANC_DTTM], [Entry_UVaID], [Canc_UVaID], [PHONE_REM_STAT_NAME], [Cancel_Lead_Days], [Load_Dtm]  FROM [TabRptg].[Dash_AmbOpt_ScheduledAppointmentMetric_Tiles]  WHERE ((event_count = 1)  AND ((appt_event_Canceled = 0)  OR ((appt_event_No_Show = 1)  OR (appt_event_Canceled_Late = 1) OR (appt_event_Provider_Canceled = 1 AND Cancel_Lead_Days <= 45)))) AND event_date BETWEEN @ApptStartDate AND @ApptEndDate  AND CAST(epic_department_id AS VARCHAR(18)) IN (@DepartmentId)  AND provider_id IN (@ProviderId) AND COALESCE(" & Parameters!DepartmentGrouperColumn.Value & ",'" & Parameters!DepartmentGrouperNoValue.Value & "') IN (@PodServiceLine);"*/
-
 USE [DS_HSDM_App]
 GO
 
@@ -9,18 +7,269 @@ GO
 SET QUOTED_IDENTIFIER ON
 GO
 
--- =============================================
--- Author:		Manikesh Iruku
--- Create date: 02/07/2019
--- Description:	ART Data port SSRS export Template
--- =============================================
-CREATE PROCEDURE [Rptg].[uspSrc_ART_DataPortal_SSRS_Template]
-    @StartDate SMALLDATETIME,
-    @EndDate SMALLDATETIME,
-    @in_servLine VARCHAR(MAX),
-    @in_deps VARCHAR(MAX),
-    @in_depid VARCHAR(MAX)
-AS
+DECLARE @StartDate SMALLDATETIME,
+        @EndDate SMALLDATETIME,
+        @in_servLine VARCHAR(MAX),
+        @in_deps VARCHAR(MAX),
+        @in_depid VARCHAR(MAX),
+	    @in_pods VARCHAR(MAX),
+	    @in_podid VARCHAR(MAX),
+	    @in_hubs VARCHAR(MAX),
+	    @in_hubid VARCHAR(MAX)
+
+--SET @StartDate = '2/1/2019 00:00 AM'
+--SET @EndDate = '2/28/2019 11:59 PM'
+SET @StartDate = '7/1/2018 00:00 AM'
+SET @EndDate = '2/28/2019 11:59 PM'
+
+SET NOCOUNT ON
+
+DECLARE @ServiceLine TABLE (ServiceLineId SMALLINT)
+
+INSERT INTO @ServiceLine
+(
+    ServiceLineId
+)
+VALUES
+--(1),--Digestive Health
+--(2),--Heart and Vascular
+--(3),--Medical Subspecialties
+--(4),--Musculoskeletal
+--(5),--Neurosciences and Behavioral Health
+--(6),--Oncology
+--(7),--Ophthalmology
+--(8),--Primary Care
+--(9),--Surgical Subspecialties
+--(10),--Transplant
+--(11) --Womens and Childrens
+--(0)  --(All)
+(1) --Digestive Health
+--(1),--Digestive Health
+--(2) --Heart and Vascular
+
+--DECLARE @ServiceLine TABLE (ServiceLineName VARCHAR(150))
+
+--INSERT INTO @ServiceLine
+--(
+--    ServiceLineName
+--)
+--VALUES
+----('Digestive Health'),
+----('Heart and Vascular'),
+----('Medical Subspecialties'),
+----('Musculoskeletal'),
+----('Neurosciences and Behavioral Health'),
+----('Oncology'),
+----('Ophthalmology'),
+----('Primary Care'),
+----('Surgical Subspecialties'),
+----('Transplant'),
+----('Womens and Childrens')
+----('Medical Subspecialties')
+--('Digestive Health')
+----('Womens and Childrens')
+--;
+
+SELECT @in_servLine = COALESCE(@in_servLine+',' ,'') + CAST(ServiceLineId AS VARCHAR(MAX))
+FROM @ServiceLine
+
+--SELECT @in_servLine
+
+DECLARE @Department TABLE (DepartmentId NUMERIC(18,0))
+
+INSERT INTO @Department
+(
+    DepartmentId
+)
+VALUES
+-- (10210006)
+--,(10210040)
+--,(10210041)
+--,(10211006)
+--,(10214011)
+--,(10214014)
+--,(10217003)
+--,(10239017)
+--,(10239018)
+--,(10239019)
+--,(10239020)
+--,(10241001)
+--,(10242007)
+--,(10242049)
+--,(10243003)
+--,(10244004)
+--,(10348014)
+--,(10354006)
+--,(10354013)
+--,(10354014)
+--,(10354015)
+--,(10354016)
+--,(10354017)
+--,(10354024)
+--,(10354034)
+--,(10354042)
+--,(10354044)
+--,(10354052)
+--,(10354055)
+ --(10214011)
+ --(10210006)
+ --(10280004) -- AUBL PEDIATRICS
+ --(10341002) -- CVPE UVA RHEU INF PNTP
+ --(10228008) -- NRDG MAMMOGRAPHY
+ --(10381003) -- UVEC RAD CT
+ --(10354032) -- UVBB PHYSICAL THER FL4
+ --(10242018) -- UVPC PULMONARY
+ --(10243003) -- UVHE DIGESTIVE HEALTH
+ --(10239003) -- UVMS NEPHROLOGY
+ --(10354015) -- UVBB PEDS ONCOLOGY CL
+(0)  -- (All)
+;
+
+SELECT @in_deps = COALESCE(@in_deps+',' ,'') + CAST(DepartmentId AS VARCHAR(MAX))
+FROM @Department
+
+--SELECT @in_deps
+
+SELECT @in_depid = COALESCE(@in_depid+',' ,'') + CAST(DepartmentId AS VARCHAR(MAX))
+FROM @Department
+
+--SELECT @in_depid
+
+DECLARE @Pod TABLE (PodId VARCHAR(100))
+
+INSERT INTO @Pod
+(
+    PodId
+)
+VALUES
+--('1'),--Cancer
+--('2'),--Musculoskeletal
+--('3'),--Primary Care
+--('4'),--Surgical Procedural Specialties
+--('5'),--Transplant
+--('6'),--Medical Specialties
+--('7'),--Radiology
+--('8'),--Heart and Vascular Center
+--('9'),--Neurosciences and Psychiatry
+--('10'),--Women's and Children's
+--('12'),--CPG
+--('13'),--UVA Community Cancer POD
+--('14'),--Digestive Health
+--('15'),--Ophthalmology
+--('16') --Community Medicine
+('0') --(All)
+;
+
+--DECLARE @Pod TABLE (PodName VARCHAR(100))
+
+--INSERT INTO @Pod
+--(
+--    PodName
+--)
+--VALUES
+----('Cancer'),
+----('Musculoskeletal'),
+----('Primary Care'),
+----('Surgical Procedural Specialties'),
+----('Transplant'),
+----('Medical Specialties'),
+----('Radiology'),
+----('Heart and Vascular Center'),
+----('Neurosciences and Psychiatry'),
+----('Women''s and Children''s'),
+----('CPG'),
+----('UVA Community Cancer POD'),
+----('Digestive Health'),
+----('Ophthalmology'),
+----('Community Medicine')
+----('Medical Specialties')
+--('Digestive Health')
+--;
+
+SELECT @in_pods = COALESCE(@in_pods+',' ,'') + CAST(PodId AS VARCHAR(MAX))
+FROM @Pod
+
+--SELECT @in_pods
+
+/*
+DECLARE @tab_pods TABLE
+(
+    pod_id VARCHAR(MAX)
+);
+INSERT INTO @tab_pods
+SELECT Param
+FROM ETL.fn_ParmParse(@in_pods, ',');
+
+SELECT * FROM @tab_pods
+
+SELECT DISTINCT pod_id, pod_name FROM [DS_HSDM_App].[TabRptg].[Dash_AmbOpt_ScheduledAppointmentMetric_Tiles] 
+where (pod_id IS NOT NULL)
+      AND
+	  (pod_name IS NOT NULL)
+	  AND
+      (
+          '0' IN
+          (
+              SELECT pod_id FROM @tab_pods
+          )
+          OR pod_id IN
+             (
+                 SELECT pod_id FROM @tab_pods
+             )
+      )
+order by pod_name
+*/
+
+SELECT @in_podid = COALESCE(@in_podid+',' ,'') + CAST(PodId AS VARCHAR(MAX))
+FROM @Pod
+
+--SELECT @in_podid
+
+DECLARE @Hub TABLE (HubId VARCHAR(66))
+
+INSERT INTO @Hub
+(
+    HubId
+)
+VALUES
+--('2'),--Non-Hub registration
+--('3'),--ECCC
+--('4'),--415 Fontaine
+--('5'),--Battle
+--('6'),--JPA
+--('7'),--Northridge
+--('8'),--PCC
+--('9'),--West Complex
+--('10') --500 Fontaine
+('0') --(All)
+;
+
+SELECT @in_hubs = COALESCE(@in_hubs+',' ,'') + CAST(HubId AS VARCHAR(MAX))
+FROM @Hub
+
+--SELECT @in_hubs
+
+SELECT @in_hubid = COALESCE(@in_hubid+',' ,'') + CAST(HubId AS VARCHAR(MAX))
+FROM @Hub
+
+--SELECT @in_hubid
+
+-- =========================================================
+-- Author:		Tom Burgan
+-- Create date: 03/25/2019
+-- Description:	No Show Rate Data Portal SSRS export script
+-- =========================================================
+--ALTER PROCEDURE [Rptg].[uspSrc_AmbOpt_NoShowRate_SSRS_Download]
+--    @StartDate SMALLDATETIME,
+--    @EndDate SMALLDATETIME,
+--    @in_servLine VARCHAR(MAX),
+--    @in_deps VARCHAR(MAX),
+--    @in_depid VARCHAR(MAX),
+--	@in_pods VARCHAR(MAX),
+--	@in_podid VARCHAR(MAX),
+--	@in_hubs VARCHAR(MAX),
+--	@in_hubid VARCHAR(MAX)
+--AS
 DECLARE @tab_servLine TABLE
 (
     Service_Line_Id VARCHAR(MAX)
@@ -28,6 +277,34 @@ DECLARE @tab_servLine TABLE
 INSERT INTO @tab_servLine
 SELECT Param
 FROM ETL.fn_ParmParse(@in_servLine, ',');
+DECLARE @tab_pods TABLE
+(
+    pod_id VARCHAR(MAX)
+);
+INSERT INTO @tab_pods
+SELECT Param
+FROM ETL.fn_ParmParse(@in_pods, ',');
+DECLARE @tab_podid TABLE
+(
+    pod_id VARCHAR(MAX)
+);
+INSERT INTO @tab_podid
+SELECT Param
+FROM ETL.fn_ParmParse(@in_podid, ',');
+DECLARE @tab_hubs TABLE
+(
+    hub_id VARCHAR(MAX)
+);
+INSERT INTO @tab_hubs
+SELECT Param
+FROM ETL.fn_ParmParse(@in_hubs, ',');
+DECLARE @tab_hubid TABLE
+(
+    hub_id VARCHAR(MAX)
+);
+INSERT INTO @tab_hubid
+SELECT Param
+FROM ETL.fn_ParmParse(@in_hubid, ',');
 DECLARE @tab_deps TABLE
 (
     epic_department_id VARCHAR(MAX)
@@ -45,11 +322,8 @@ FROM ETL.fn_ParmParse(@in_depid, ',');
 SELECT
        event_date,
        event_type, -- 'Appointment'
-	   CASE
-	     WHEN appt_event_Canceled = 0 OR appt_event_Canceled_Late = 1 OR (appt_event_Provider_Canceled = 1 AND Cancel_Lead_Days <= 45) THEN 'Appointment'
-		 WHEN (appt_event_No_Show = 1 OR appt_event_Canceled_Late = 1) THEN 'No Show'
-	   END AS event_category,
-       event_count, -- 1 for event_category 'No Show' and 'Scheduled', 0 otherwise
+	   event_category, -- NULL
+       event_count, -- 1
        fyear_num,
        Load_Dtm,
        hs_area_name,
@@ -66,23 +340,36 @@ SELECT
        transplant,
        person_id,
        provider_id,
-       CAST(Discharge_Disposition_Dt AS DATE) Disp_Date,
-       CAST(Discharge_Disposition_Dt AS TIME) Disp_Time,
-       REASON_VISIT_NAME Reason_for_Visit,
-       Acuity_Level,
-       longest_provider,
-       CARE_AREA_NAME Care_Area,
-       --event_date,
-       Preadmit_Order_Dt,
-       Inpatient_Order_Dt,
-       CAST(Departure_Dt AS TIME) Depart_Time,
-       LOS_in_Hours,
-       admitting_provider,
-       admitting_unit
-FROM [DS_HSDM_App].[TabRptg].[Dash_AmbOpt_ScheduledAppointmentMetric_Tiles]
+	   enc.PAT_ENC_CSN_ID,
+	   acct.AcctNbr_int,
+	   CASE WHEN appt_event_Canceled = 0 OR appt_event_Canceled_Late = 1 OR (appt_event_Provider_Canceled = 1 AND Cancel_Lead_Days <= 45) THEN 1 ELSE 0 END AS [Appt],
+	   CASE WHEN (appt_event_No_Show = 1 OR appt_event_Canceled_Late = 1) THEN 1 ELSE 0 END AS [No Show],
+	   APPT_STATUS_FLAG,
+	   APPT_DTTM,
+	   CANCEL_REASON_C,
+	   CANCEL_REASON_NAME,
+	   CANCEL_INITIATOR,
+	   CANCEL_LEAD_HOURS,
+	   Cancel_Lead_Days,
+	   APPT_CANC_DTTM,
+	   APPT_MADE_DATE,
+	   appt_event_No_Show,
+	   appt_event_Canceled_Late,
+	   appt_event_Scheduled,
+	   appt_event_Provider_Canceled,
+	   appt_event_Completed,
+	   appt_event_Arrived,
+	   PHONE_REM_STAT_NAME
+FROM [DS_HSDM_App].[TabRptg].[Dash_AmbOpt_ScheduledAppointmentMetric_Tiles] tabrptg
+LEFT OUTER JOIN DS_HSDW_Prod.Rptg.vwFact_Pt_Enc_Clrt enc
+ON enc.sk_Fact_Pt_Enc_Clrt = tabrptg.sk_Fact_Pt_Enc_Clrt
+LEFT OUTER JOIN DS_HSDW_Prod.Rptg.vwFact_Pt_Acct_Aggr acct
+ON acct.sk_Fact_Pt_Acct = tabrptg.sk_Fact_Pt_Acct
 WHERE 1 = 1
       AND event_date >= @StartDate
       AND event_date <= @EndDate
+	  AND ((event_count = 1)
+           AND (appt_event_Canceled = 0 OR appt_event_Canceled_Late = 1 OR (appt_event_Provider_Canceled = 1 AND Cancel_Lead_Days <= 45)))
       AND
       (
           0 IN
@@ -107,15 +394,60 @@ WHERE 1 = 1
       )
       AND
       (
+          '0' IN
+          (
+              SELECT pod_id FROM @tab_pods
+          )
+          OR pod_id IN
+             (
+                 SELECT pod_id FROM @tab_pods
+             )
+      )
+      AND
+      (
+          '0' IN
+          (
+              SELECT pod_id FROM @tab_podid
+          )
+          OR pod_id IN
+             (
+                 SELECT pod_id FROM @tab_podid
+             )
+      )
+      AND
+      (
+          '0' IN
+          (
+              SELECT hub_id FROM @tab_hubs
+          )
+          OR hub_id IN
+             (
+                 SELECT hub_id FROM @tab_hubs
+             )
+      )
+      AND
+      (
+          '0' IN
+          (
+              SELECT hub_id FROM @tab_hubid
+          )
+          OR hub_id IN
+             (
+                 SELECT hub_id FROM @tab_hubid
+             )
+      )
+      AND
+      (
           0 IN
           (
               SELECT Service_Line_Id FROM @tab_servLine
           )
-          OR COALESCE(service_line_id, opnl_service_id) IN
+          OR COALESCE(w_service_line_id, w_opnl_service_id) IN
              (
                  SELECT Service_Line_Id FROM @tab_servLine
              )
       );
+
 GO
 
 
