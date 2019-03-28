@@ -7,20 +7,12 @@ GO
 SET QUOTED_IDENTIFIER ON
 GO
 
-DECLARE @startdate SMALLDATETIME
-       ,@enddate SMALLDATETIME
-
---SET @startdate = NULL
---SET @enddate = NULL
-SET @startdate = '2/3/2019 00:00 AM'
-SET @enddate = '2/9/2019 11:59 PM'
-
---ALTER PROCEDURE [ETL].[uspSrc_AmbOpt_Scheduled_Appointment_Metric]
---    (
---     @startdate SMALLDATETIME = NULL
---    ,@enddate SMALLDATETIME = NULL
---    )
---AS 
+ALTER PROCEDURE [ETL].[uspSrc_AmbOpt_Scheduled_Appointment_Metric]
+    (
+     @startdate SMALLDATETIME = NULL
+    ,@enddate SMALLDATETIME = NULL
+    )
+AS 
 --/**********************************************************************************************************************
 --WHAT: Create procedure ETL.uspSrc_AmbOpt_Scheduled_Appointment_Metric
 --WHO : Tom Burgan
@@ -107,9 +99,6 @@ DECLARE @locstartdate SMALLDATETIME,
 
 SET @locstartdate = @startdate
 SET @locenddate   = @enddate
-
-IF OBJECT_ID('tempdb..#metric ') IS NOT NULL
-DROP TABLE #metric
 
 SELECT CAST('Appointment' AS VARCHAR(50)) AS event_type,
        CASE
@@ -245,8 +234,6 @@ SELECT CAST('Appointment' AS VARCHAR(50)) AS event_type,
 	   evnts.w_som_department_name,
 	   evnts.w_som_division_id,
 	   evnts.w_som_division_name
-
-INTO #metric
 
 FROM
 (
@@ -698,7 +685,6 @@ FROM
 						SELECT
 						    sk_Dim_Physcn,
 							dim_Physcn_PROV_ID,
-							-- ROW_NUMBER() OVER (PARTITION BY dim_Physcn_PROV_ID ORDER BY cw_Legacy_src_system) AS [SOMSeq]
 							ROW_NUMBER() OVER (PARTITION BY sk_Dim_Physcn ORDER BY cw_Legacy_src_system) AS [SOMSeq],
 							Clrt_Financial_Division,
 							Clrt_Financial_Division_Name,
@@ -724,25 +710,7 @@ FROM
 WHERE date_dim.day_date >= @locstartdate
       AND date_dim.day_date < @locenddate
 
---ORDER BY date_dim.day_date;
-
-SELECT *
-FROM #metric
---WHERE Appointment_Lag_Days >= 0 AND appt_event_New_to_Specialty = 1 AND appt_event_Completed = 1
---WHERE appt_event_Canceled = 0 OR appt_event_Canceled_Late = 1 OR (appt_event_Provider_Canceled = 1 AND Cancel_Lead_Days <= 45)
---WHERE appt_event_Completed = 1
---GROUP BY APPT_STATUS_FLAG
-
---ORDER BY Appointment_Lag_Days DESC
---ORDER BY APPT_STATUS_FLAG
---ORDER BY COUNT(*) DESC
---ORDER BY ENC_TYPE_TITLE
---ORDER BY event_date,
---         PAT_ENC_CSN_ID
---ORDER BY w_financial_division_id,
---         event_date
-ORDER BY PAT_ENC_CSN_ID,
-         event_date
+ORDER BY date_dim.day_date;
 
 GO
 
