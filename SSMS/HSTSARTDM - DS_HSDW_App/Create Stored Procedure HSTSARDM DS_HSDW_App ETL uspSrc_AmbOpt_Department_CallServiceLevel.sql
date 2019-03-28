@@ -6,19 +6,17 @@ GO
 
 SET QUOTED_IDENTIFIER ON
 GO
-DECLARE @startdate SMALLDATETIME = NULL
-       ,@enddate SMALLDATETIME = NULL
 
---CREATE PROCEDURE [ETL].[uspSrc_AmbOpt_Department_CallServiceLevel]
---    (
---     @startdate SMALLDATETIME = NULL
---    ,@enddate SMALLDATETIME = NULL
---    )
---AS 
+CREATE PROCEDURE [ETL].[uspSrc_AmbOpt_Department_CallServiceLevel]
+    (
+     @startdate SMALLDATETIME = NULL
+    ,@enddate SMALLDATETIME = NULL
+    )
+AS 
 --/**********************************************************************************************************************
 --WHAT: Create procedure ETL.uspSrc_AmbOpt_Department_CallServiceLevel
 --WHO : Tom Burgan
---WHEN: 3/25/19
+--WHEN: 3/28/19
 --WHY : Report ACC call system call service level rates.
 --
 -------------------------------------------------------------------------------------------------------------------------
@@ -34,7 +32,7 @@ DECLARE @startdate SMALLDATETIME = NULL
 -- 
 --------------------------------------------------------------------------------------------------------------------------
 --MODS: 	
---       03/25/2019 - TMB - create stored procedure
+--       03/28/2019 - TMB - create stored procedure
 --************************************************************************************************************************
 
     SET NOCOUNT ON;
@@ -56,27 +54,6 @@ SET @currdate = CAST(GETDATE() AS SMALLDATETIME)
 SET @bod = CAST(CAST(@currdate AS DATE) AS SMALLDATETIME)
 
 ----------------------------------------------------------
-
-if OBJECT_ID('tempdb..#datetable') is not NULL
-DROP TABLE #datetable
-
-if OBJECT_ID('tempdb..#depmapping') is not NULL
-DROP TABLE #depmapping
-
-if OBJECT_ID('tempdb..#acc') is not NULL
-DROP TABLE #acc
-
-if OBJECT_ID('tempdb..#accsum') is not NULL
-DROP TABLE #accsum
-
-if OBJECT_ID('tempdb..#allacc') is not NULL
-DROP TABLE #allacc
-
-if OBJECT_ID('tempdb..#accdatetable') is not NULL
-DROP TABLE #accdatetable
-
-if OBJECT_ID('tempdb..#AmbOpt_Dash_CallAnswerRate') is not NULL
-DROP TABLE #AmbOpt_Dash_CallAnswerRate
 
 SELECT date_dim.day_date
       ,date_dim.fmonth_num
@@ -145,12 +122,6 @@ SELECT [cName]
   INNER JOIN #depmapping dep
   ON dep.Workgroup = accqs.cName
 
-  --SELECT *
-  --FROM #acc
-  --ORDER BY cName
-  --       , Department_Id
-  --       , day_date
-
 SELECT
        acc.day_date
       ,acc.Department_Id AS epic_department_id
@@ -206,52 +177,52 @@ CROSS JOIN #datetable dt
 
 -----------------------------------------------------------------------------------------------------------
 ---BDD 7/27/2018 added insert to stage. Assumes truncate is handled in the SSIS package
---INSERT INTO DS_HSDM_App.Stage.AmbOpt_Dash_Department_CallServiceLevel
---           ([event_type]
---           ,[event_count]
---           ,[event_date]
---           ,[event_category]
---           ,[pod_id]
---           ,[pod_name]
---           ,[hub_id]
---           ,[hub_name]
---           ,[epic_department_id]
---           ,[epic_department_name]
---           ,[epic_department_name_external]
---           ,[fmonth_num]
---           ,[Fyear_num]
---           ,[FYear_name]
---           ,[report_period]
---           ,[report_date]
---           ,[peds]
---           ,[transplant]
---           ,[sk_Dim_pt]
---           ,[sk_Fact_Pt_Acct]
---           ,[sk_Fact_Pt_Enc_Clrt]
---           ,[person_birth_date]
---           ,[person_gender]
---           ,[person_id]
---           ,[person_name]
---           ,[practice_group_id]
---           ,[practice_group_name]
---           ,[provider_id]
---           ,[provider_name]
---           ,[service_line_id]
---           ,[service_line]
---           ,[sub_service_line_id]
---           ,[sub_service_line]
---           ,[opnl_service_id]
---           ,[opnl_service_name]
---           ,[corp_service_line_id]
---           ,[corp_service_line]
---           ,[hs_area_id]
---           ,[hs_area_name]
---           ,[nEnteredAcd]
---           ,[nAbandonedAcd]
---           ,[nAnsweredAcd]
---           ,[nAnsweredAcdSvcLvl_20]
---		   ,[ReportGroup]
---		   )
+INSERT INTO DS_HSDM_App.Stage.AmbOpt_Dash_Department_CallServiceLevel
+           ([event_type]
+           ,[event_count]
+           ,[event_date]
+           ,[event_category]
+           ,[pod_id]
+           ,[pod_name]
+           ,[hub_id]
+           ,[hub_name]
+           ,[epic_department_id]
+           ,[epic_department_name]
+           ,[epic_department_name_external]
+           ,[fmonth_num]
+           ,[Fyear_num]
+           ,[FYear_name]
+           ,[report_period]
+           ,[report_date]
+           ,[peds]
+           ,[transplant]
+           ,[sk_Dim_pt]
+           ,[sk_Fact_Pt_Acct]
+           ,[sk_Fact_Pt_Enc_Clrt]
+           ,[person_birth_date]
+           ,[person_gender]
+           ,[person_id]
+           ,[person_name]
+           ,[practice_group_id]
+           ,[practice_group_name]
+           ,[provider_id]
+           ,[provider_name]
+           ,[service_line_id]
+           ,[service_line]
+           ,[sub_service_line_id]
+           ,[sub_service_line]
+           ,[opnl_service_id]
+           ,[opnl_service_name]
+           ,[corp_service_line_id]
+           ,[corp_service_line]
+           ,[hs_area_id]
+           ,[hs_area_name]
+           ,[nEnteredAcd]
+           ,[nAbandonedAcd]
+           ,[nAnsweredAcd]
+           ,[nAnsweredAcdSvcLvl_20]
+		   ,[ReportGroup]
+		   )
     SELECT	DISTINCT
             CAST('Call Service Level' AS VARCHAR(50)) AS event_type
            ,CASE WHEN main.day_date IS NOT NULL THEN 1 ELSE 0 END AS event_count
@@ -300,8 +271,6 @@ CROSS JOIN #datetable dt
 		   ,CASE WHEN main.nAnsweredAcdSvcLvl_20 IS NULL THEN 0 ELSE main.nAnsweredAcdSvcLvl_20 END AS nAnsweredAcdSvcLvl_20
 		   ,date_dim.ReportGroup
 
-		--INTO #AmbOpt_Dash_CallAnswerRate
-
         FROM
             #accdatetable AS date_dim
         LEFT OUTER JOIN (
@@ -346,67 +315,7 @@ CROSS JOIN #datetable dt
 			   , CAST(date_dim.cName AS VARCHAR(150))
 			   , date_dim.ReportGroup
 			   , date_dim.day_date
-/*
-		SELECT *
-		--SELECT epic_department_id
-		--     , epic_department_name
-		--	 , epic_department_name_external
-		--	 , event_category
-		--	 , ReportGroup
-		--	 , event_date
-		--	 , event_count
-		--	 , nEnteredAcd
-		--	 , nAbandonedAcd
-		--	 , nAnsweredAcd
-		--	 , nAnsweredAcdSvcLvl_20
-		FROM #AmbOpt_Dash_CallAnswerRate
-		--WHERE event_category = 'UHC_Medical'
-		--AND event_count = 1
-		--AND CAST(event_date AS DATE) BETWEEN '12/1/2017' AND '12/28/2017'
-		--WHERE pod_name = 'Digestive Health'
-		--AND event_count = 1
-*/
-/*
-		ORDER BY CASE WHEN main.day_date IS NOT NULL THEN 1 ELSE 0 END DESC
-		       --, CASE WHEN date_dim.pod_id = -1 THEN NULL ELSE date_dim.pod_id END 
-		       --, CASE WHEN main.pod_id = -1 THEN NULL ELSE main.pod_id END 
-		       , CASE WHEN date_dim.pod_id = -1 THEN NULL ELSE date_dim.pod_id END 
-			   --, CASE WHEN date_dim.pod_name = 'Unknown' THEN CAST(NULL AS VARCHAR(100)) ELSE CAST(date_dim.pod_name AS VARCHAR(100)) END
-			   --, CASE WHEN main.pod_name = 'Unknown' THEN CAST(NULL AS VARCHAR(100)) ELSE CAST(main.pod_name AS VARCHAR(100)) END
-			   , CASE WHEN date_dim.pod_name = 'Unknown' THEN CAST(NULL AS VARCHAR(100)) ELSE CAST(date_dim.pod_name AS VARCHAR(100)) END
-			   --, date_dim.MappingNotes
-			   --, main.MappingNotes
-			   --, pod.MappingNotes
-			   , CAST(date_dim.cName AS VARCHAR(150))
-			   , date_dim.ReportGroup
-			   , date_dim.day_date
-*/
-		--ORDER BY CASE WHEN date_dim.pod_id = -1 THEN NULL ELSE date_dim.pod_id END
-		--	   , CASE WHEN date_dim.pod_name = 'Unknown' THEN CAST(NULL AS VARCHAR(100)) ELSE CAST(date_dim.pod_name AS VARCHAR(100)) END
-		--	   , CAST(date_dim.cName AS VARCHAR(150))
-		--	   , date_dim.ReportGroup
-		--	   , date_dim.day_date
 
-		--ORDER BY pod_id
-		--	   , pod_name
-		--	   , event_category
-		--	   , event_date
-		--	   , ReportGroup
-
-		--ORDER BY epic_department_id
-		--	   , epic_department_name
-		--	   , epic_department_name_external
-		--	   , event_category
-		--	   , ReportGroup
-		--	   , event_date
-/*
-		ORDER BY event_date
-		       , epic_department_id
-			   , epic_department_name
-			   , epic_department_name_external
-			   , event_category
-			   , ReportGroup
-*/
 GO
 
 
