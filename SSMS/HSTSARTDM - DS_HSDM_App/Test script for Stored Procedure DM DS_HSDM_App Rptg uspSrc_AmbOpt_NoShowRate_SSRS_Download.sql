@@ -17,10 +17,10 @@ DECLARE @StartDate SMALLDATETIME,
 	    @in_hubs VARCHAR(MAX),
 	    @in_hubid VARCHAR(MAX)
 
---SET @StartDate = '2/1/2019 00:00 AM'
---SET @EndDate = '2/28/2019 11:59 PM'
-SET @StartDate = '7/1/2018 00:00 AM'
+SET @StartDate = '2/1/2019 00:00 AM'
 SET @EndDate = '2/28/2019 11:59 PM'
+--SET @StartDate = '7/1/2018 00:00 AM'
+--SET @EndDate = '2/28/2019 11:59 PM'
 
 SET NOCOUNT ON
 
@@ -336,6 +336,18 @@ SELECT
        w_department_id,
        w_department_name,
        w_department_name_external,
+	   w_financial_division_id,
+	   w_financial_division_name,
+	   w_financial_sub_division_id,
+	   w_financial_sub_division_name,
+	   w_rev_location_id,
+	   w_rev_location,
+	   w_som_group_id,
+	   w_som_group_name,
+	   w_som_department_id,
+	   w_som_department_name,
+	   w_som_division_id,
+	   w_som_division_name,
        peds,
        transplant,
        person_id,
@@ -359,7 +371,11 @@ SELECT
 	   appt_event_Provider_Canceled,
 	   appt_event_Completed,
 	   appt_event_Arrived,
-	   PHONE_REM_STAT_NAME
+	   PHONE_REM_STAT_NAME,
+	   APPT_MADE_DTTM,
+	   BUSINESS_UNIT,
+	   Prov_Typ,
+	   Staff_Resource
 FROM [DS_HSDM_App].[TabRptg].[Dash_AmbOpt_ScheduledAppointmentMetric_Tiles] tabrptg
 LEFT OUTER JOIN DS_HSDW_Prod.Rptg.vwFact_Pt_Enc_Clrt enc
 ON enc.sk_Fact_Pt_Enc_Clrt = tabrptg.sk_Fact_Pt_Enc_Clrt
