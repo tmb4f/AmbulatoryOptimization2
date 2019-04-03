@@ -20,8 +20,7 @@ SET @enddate = '2/9/2019 11:59 PM'
 
 --ALTER PROCEDURE [ETL].[uspSrc_AmbOpt_HARVerif] 
 --(@startdate SMALLDATETIME = NULL, 
--- @enddate SMALLDATETIME = NULL, 
--- @dt SMALLINT = NULL
+-- @enddate SMALLDATETIME = NULL
 --)
 --AS
 --/**********************************************************************************************************************
@@ -51,7 +50,7 @@ SET @enddate = '2/9/2019 11:59 PM'
 --				CLARITY.dbo.VERIF_ENC_CVGS	 cvgvrf
 --				CLARITY_App.Rptg.vwRef_MDM_Location_Master mdm
 --				CLARITY.dbo.CLARITY_EPP_2 epp
---				CLARITY.dbo.PAT_ENC
+--				LARITY.dbo.PAT_ENC
 --                
 --      OUTPUTS:  [ETL].[uspSrc_AmbOpt_HARVerif]
 --					
@@ -78,10 +77,14 @@ SET @enddate = '2/9/2019 11:59 PM'
 --                              -- include late provider-initiated cancellations in the denominator
 --         01/16/2019 - Tom     -- filter excluded departments
 --         01/31/2019 - Tom     -- add code to set values for wrapper columns "peds" and "transplant"
---         03/14/2019 - Tom     -- exclude appointments created within 5 days of the appointment date
+--         03/26/2019 - Tom     -- exclude appointments created within 5 days of the appointment date
 --                              -- remove parameter for days between HAR Verification date and appointment date
 --                              -- add column APPT_MADE_DTTM, calculated column [HAR Verification DATEDIFF]
 --                              -- add new standard columns
+--         03/28/2019 - BDD     ---cast various columns as proper data type for portal tables, replaced spaces in output column name with _
+--         03/28/2019 - BDD     ---removed w_ from new column names to match other portal processes. corrected mdm column names
+--         03/28/2019 - BDD     ---replaced select * with column list
+--         04/02/2019 - TMB     ---edited logic to join encounter to Rptg.vwRef_Crosswalk_HSEntity_Prov using PROV_ID
 --************************************************************************************************************************
 
 SET NOCOUNT ON;
@@ -93,16 +96,12 @@ AND @enddate IS NULL
     EXEC ETL.usp_Get_Dash_Dates_BalancedScorecard @startdate OUTPUT
                                                  ,@enddate OUTPUT;
 
---IF @dt IS NULL
---    SET @dt = 5; -- set default  to 5 (number of days expected to complete pre-reg before appointment date)
-
-
 DECLARE @locstartdate SMALLDATETIME
        ,@locenddate   SMALLDATETIME
        ,@locdt        INT;
 SET @locstartdate = @startdate;
 SET @locenddate = @enddate;
-SET @locdt = 5; -- 3/14/2019 Tom Default days between HAR Verification date and appointment date for scorecard
+SET @locdt = 5; -- 3/26/2019 Tom Default days between HAR Verification date and appointment date for scorecard
 -------------------------------------------------------------------------------
 
 if OBJECT_ID('tempdb..#HAR') is not NULL
@@ -165,9 +164,6 @@ SELECT DISTINCT
 
                                                                                                                                                  --patient info
                    ,appt.PAT_ENC_CSN_ID
-				   ,CAST(isi.IDENTITY_ID AS INTEGER) AS IDENTITY_ID
-				   ,uwd.sk_Dim_Physcn
-				   ,uwd.dim_Physcn_PROV_ID
                    ,appt.PAT_ID                                                                                              AS PAT_id
                    ,PATIENT.PAT_NAME                                                                                         AS person_name
                    ,CAST(idx.IDENTITY_ID AS VARCHAR(50))                                                                     AS person_id        --MRN ---BDD 10/11/2018 cast for epic upgrade
@@ -214,10 +210,8 @@ SELECT DISTINCT
 
                                                                                                                                                  --Provider/scheduler info
 
-                   ,appt.VISIT_PROV_ID                                                                                       AS provider_id
+                   ,appt.VISIT_PROV_ID                                                                                       AS provier_id
                    ,ser.PROV_NAME                                                                                            AS provider_Name
-				   ,ser.PROV_TYPE                                                                                            AS provider_Type
-				   ,ser.CLINICIAN_TITLE
                    ,CAST(ser.RPT_GRP_FIVE AS VARCHAR(150))                                                                   AS prov_serviceline --service line
                    ,CAST(NULL AS INT)                                                                                        AS practice_group_id
                    ,CAST(NULL AS VARCHAR(150))                                                                               AS practice_group_name
@@ -235,10 +229,8 @@ SELECT DISTINCT
 
                                                                                                                                                  --fac-org info
                    ,mdm.epic_department_id
-                   --,mdm.epic_department_name
-                   --,mdm.epic_department_name_external
-                   ,mdm.EPIC_DEPT_NAME                                                                                       AS epic_department_name
-                   ,mdm.EPIC_EXT_NAME                                                                                        AS epic_department_name_external
+                   ,mdm.EPIC_DEPT_NAME AS epic_department_name
+                   ,mdm.EPIC_EXT_NAME  AS epic_department_name_external
                    ,CAST(dep.RPT_GRP_SIX AS VARCHAR(55))                                                                     AS pod_id
                    ,CAST(pod.NAME AS VARCHAR(100))                                                                           AS pod_name         -- pod
                    ,CAST(dep.RPT_GRP_SEVEN AS VARCHAR(55))                                                                   AS hub_id           -- hub
@@ -253,32 +245,178 @@ SELECT DISTINCT
                    ,mdm.corp_service_line                                                                                    AS corp_service_line_name
                    ,mdm.hs_area_id                                                                                           AS hs_area_id
                    ,mdm.hs_area_name                                                                                         AS hs_area_name
-				   ,DATEDIFF(DAY, harvrf.LAST_STAT_CHNG_DTTM, appt.APPT_TIME)                                                AS [HAR Verification DATEDIFF] -- INTEGER
-				   ,appt.APPT_MADE_DTTM -- DATETIME
-				   --,NULL                                                                                                     AS w_som_group_id
-				   --,NULL                                                                                                     AS w_som_group_name
-				   ,mdm.LOC_ID                                                                                               AS w_rev_location_id
-				   ,mdm.REV_LOC_NAME                                                                                         AS w_rev_name
-				   ,uwd.Clrt_Financial_Division                                                                               AS w_financial_division_id
-				   ,uwd.Clrt_Financial_Division_Name                                                                          AS w_financial_division_name
-				   ,uwd.Clrt_Financial_SubDivision                                                                            AS w_financial_sub_division_id
-				   ,uwd.Clrt_Financial_SubDivision_Name                                                                       AS w_financial_sub_division_name
-				   ,uwd.SOM_DEPT_ID                                                                                           AS w_som_department_id
-				   ,NULL                                                                                                     AS w_som_department_name
-				   ,uwd.wd_Dept_Code                                                                                          AS w_som_division_id
-				   ,uwd.wd_Department_Name                                                                                    AS w_som_division_name
-				   ,uwd.wd_Is_Primary_Job
+
+				   ,DATEDIFF(DAY, harvrf.LAST_STAT_CHNG_DTTM, appt.APPT_TIME)                                                AS HAR_Verification_DATEDIFF -- INTEGER
+				   ,appt.APPT_MADE_DTTM
+				   ,dp.sk_Dim_Physcn
+				   ,NULL                                                                                                     AS som_group_id
+				   ,NULL                                                                                                     AS som_group_name
+				   ,mdm.LOC_ID                                                                                               AS rev_location_id
+				   ,mdm.REV_LOC_NAME                                                                                         AS rev_location
+
+				   ,uwd.Clrt_Financial_Division                                                                              AS financial_division_id
+				   ,uwd.Clrt_Financial_Division_Name																		 AS financial_division_name
+				   ,uwd.Clrt_Financial_SubDivision                                                                           AS financial_sub_division_id
+				   ,uwd.Clrt_Financial_SubDivision_Name																		 AS financial_sub_division_name
+
+--				   ,uwd.SOM_DEPT_ID                                                                                          AS som_department_id
+				   ,CAST(uwd.SOM_Department_ID AS INT)																		 AS som_department_id    ---bdd 3/29/2019 temp until ref table built
+				   ,CAST(uwd.SOM_Department AS VARCHAR(150))                                                                 AS som_department_name
+				   ,CAST(uwd.SOM_Division_ID AS INT)                                                                         AS som_division_id
+				   ,CAST(uwd.SOM_Division_Name AS VARCHAR(150))                                                              AS som_division_name
 
 INTO                #HAR
 
 FROM                CLARITY_App.dbo.Dim_Date                           AS dmdt
     LEFT OUTER JOIN
                     (
-                        SELECT         enc.*
+                        SELECT         enc.PAT_ID,
+                                       enc.PAT_ENC_DATE_REAL,
+                                       enc.PAT_ENC_CSN_ID,
+                                       enc.CONTACT_DATE,
+                                       enc.ENC_TYPE_C,
+                                       enc.ENC_TYPE_TITLE,
+                                       enc.AGE,
+                                       enc.PCP_PROV_ID,
+                                       enc.FIN_CLASS_C,
+                                       enc.VISIT_PROV_ID,
+                                       enc.VISIT_PROV_TITLE,
+                                       enc.DEPARTMENT_ID,
+                                       enc.BP_SYSTOLIC,
+                                       enc.BP_DIASTOLIC,
+                                       enc.TEMPERATURE,
+                                       enc.PULSE,
+                                       enc.WEIGHT,
+                                       enc.HEIGHT,
+                                       enc.RESPIRATIONS,
+                                       enc.LMP_DATE,
+                                       enc.LMP_OTHER_C,
+                                       enc.HEAD_CIRCUMFERENCE,
+                                       enc.ENC_CLOSED_YN,
+                                       enc.ENC_CLOSED_USER_ID,
+                                       enc.ENC_CLOSE_DATE,
+                                       enc.LOS_PRIME_PROC_ID,
+                                       enc.LOS_PROC_CODE,
+                                       enc.LOS_MODIFIER1_ID,
+                                       enc.LOS_MODIFIER2_ID,
+                                       enc.LOS_MODIFIER3_ID,
+                                       enc.LOS_MODIFIER4_ID,
+                                       enc.CHKIN_INDICATOR_C,
+                                       enc.CHKIN_INDICATOR_DT,
+                                       enc.APPT_STATUS_C,
+                                       enc.APPT_BLOCK_C,
+                                       enc.APPT_TIME,
+                                       enc.APPT_LENGTH,
+                                       enc.APPT_MADE_DATE,
+                                       enc.APPT_PRC_ID,
+                                       enc.CHECKIN_TIME,
+                                       enc.CHECKOUT_TIME,
+                                       enc.ARVL_LST_DL_TIME,
+                                       enc.ARVL_LST_DL_USR_ID,
+                                       enc.APPT_ENTRY_USER_ID,
+                                       enc.APPT_CANC_USER_ID,
+                                       enc.APPT_CANCEL_DATE,
+                                       enc.CHECKIN_USER_ID,
+                                       enc.CANCEL_REASON_C,
+                                       enc.APPT_SERIAL_NO,
+                                       enc.HOSP_ADMSN_TIME,
+                                       enc.HOSP_DISCHRG_TIME,
+                                       enc.HOSP_ADMSN_TYPE_C,
+                                       enc.NONCVRED_SERVICE_YN,
+                                       enc.REFERRAL_REQ_YN,
+                                       enc.REFERRAL_ID,
+                                       enc.ACCOUNT_ID,
+                                       enc.COVERAGE_ID,
+                                       enc.AR_EPISODE_ID,
+                                       enc.CLAIM_ID,
+                                       enc.PRIMARY_LOC_ID,
+                                       enc.CHARGE_SLIP_NUMBER,
+                                       enc.VISIT_EPM_ID,
+                                       enc.VISIT_EPP_ID,
+                                       enc.VISIT_FC,
+                                       enc.COPAY_DUE,
+                                       enc.COPAY_COLLECTED,
+                                       enc.COPAY_SOURCE_C,
+                                       enc.COPAY_TYPE_C,
+                                       enc.COPAY_REF_NUM,
+                                       enc.COPAY_PMT_EXPL_C,
+                                       enc.UPDATE_DATE,
+                                       enc.SERV_AREA_ID,
+                                       enc.HSP_ACCOUNT_ID,
+                                       enc.ADM_FOR_SURG_YN,
+                                       enc.SURGICAL_SVC_C,
+                                       enc.INPATIENT_DATA_ID,
+                                       enc.IP_EPISODE_ID,
+                                       enc.APPT_QNR_ANS_ID,
+                                       enc.ATTND_PROV_ID,
+                                       enc.ORDERING_PROV_TEXT,
+                                       enc.ES_ORDER_STATUS_C,
+                                       enc.EXTERNAL_VISIT_ID,
+                                       enc.CONTACT_COMMENT,
+                                       enc.OUTGOING_CALL_YN,
+                                       enc.DATA_ENTRY_PERSON,
+                                       enc.IS_WALK_IN_YN,
+                                       enc.CM_CT_OWNER_ID,
+                                       enc.REFERRAL_SOURCE_ID,
+                                       enc.SIGN_IN_TIME,
+                                       enc.SIGN_IN_USER_ID,
+                                       enc.APPT_TARGET_DATE,
+                                       enc.WC_TPL_VISIT_C,
+                                       enc.ROUTE_SUM_PRNT_YN,
+                                       enc.CONSENT_TYPE_C,
+                                       enc.PHONE_REM_STAT_C,
+                                       enc.APPT_CONF_STAT_C,
+                                       enc.APPT_CONF_PERS,
+                                       enc.APPT_CONF_INST,
+                                       enc.CANCEL_REASON_CMT,
+                                       enc.ORDERING_PROV_ID,
+                                       enc.BMI,
+                                       enc.BSA,
+                                       enc.AVS_PRINT_TM,
+                                       enc.AVS_FIRST_USER_ID,
+                                       enc.ENC_MED_FRZ_RSN_C,
+                                       enc.WC_TPL_VISIT_CMT,
+                                       enc.HOSP_LICENSE_C,
+                                       enc.ACCREDITATION_C,
+                                       enc.CERTIFICATION_C,
+                                       enc.ENTITY_C,
+                                       enc.EFFECTIVE_DATE_DT,
+                                       enc.DISCHARGE_DATE_DT,
+                                       enc.EFFECTIVE_DEPT_ID,
+                                       enc.TOBACCO_USE_VRFY_YN,
+                                       enc.PHON_CALL_YN,
+                                       enc.PHON_NUM_APPT,
+                                       enc.ENC_CLOSE_TIME,
+                                       enc.COPAY_PD_THRU,
+                                       enc.INTERPRETER_NEED_YN,
+                                       enc.VST_SPECIAL_NEEDS_C,
+                                       enc.INTRP_ASSIGNMENT_C,
+                                       enc.ASGND_INTERP_TYPE_C,
+                                       enc.INTERPRETER_VEND_C,
+                                       enc.INTERPRETER_NAME,
+                                       enc.CHECK_IN_KIOSK_ID,
+                                       enc.BENEFIT_PACKAGE_ID,
+                                       enc.BENEFIT_COMP_ID,
+                                       enc.BEN_ADJ_TABLE_ID,
+                                       enc.BEN_ADJ_FORMULA_ID,
+                                       enc.BEN_ENG_SP_AMT,
+                                       enc.BEN_ADJ_COPAY_AMT,
+                                       enc.BEN_ADJ_METHOD_C,
+                                       enc.DOWNTIME_CSN,
+                                       enc.ENTRY_TIME,
+                                       enc.ENC_CREATE_USER_ID,
+                                       enc.ENC_INSTANT,
+                                       enc.ED_ARRIVAL_KIOSK_ID,
+                                       enc.EFFECTIVE_DATE_DTTM,
+                                       enc.CALCULATED_ENC_STAT_C
                                       ,har.HAR_VERIFICATION_ID
                                       ,acct.ACCT_FIN_CLASS_C
 									  ,sched.APPT_CANC_DTTM
 									  ,sched.APPT_MADE_DTTM
+
+				                       ----BDD 04/01/2019 added calcd column to help eliminate function from final where clause
+    				                  ,DATEDIFF(DAY, sched.APPT_MADE_DTTM, enc.APPT_TIME) AS Appt_Made_Days 
+
                         FROM           CLARITY.dbo.PAT_ENC       AS enc					--12/17/2018 -Tom B Replaced V_SCHED_APPT with PAT_ENC
                             INNER JOIN CLARITY.dbo.HSP_ACCOUNT_3 AS har ON har.HSP_ACCOUNT_ID = enc.HSP_ACCOUNT_ID
                             INNER JOIN CLARITY.dbo.HSP_ACCOUNT   AS acct ON har.HSP_ACCOUNT_ID = acct.HSP_ACCOUNT_ID
@@ -323,7 +461,6 @@ FROM                CLARITY_App.dbo.Dim_Date                           AS dmdt
                        -- AND            acct.ACCT_BASECLS_HA_C = '2' --outpatient				--12/13/2018 -Mali remove filter for Outpatient per request from KF ****
                         AND            enc.APPT_TIME >= @locstartdate
                         AND            enc.APPT_TIME < @locenddate
-						--AND            enc.VISIT_PROV_ID IN ('91274','93744')
                     )                                                  AS appt ON CAST(appt.APPT_TIME AS DATE) = CAST(dmdt.day_date AS DATE)
 
     LEFT OUTER JOIN CLARITY.dbo.CLARITY_DEP                            AS dep ON dep.DEPARTMENT_ID = appt.DEPARTMENT_ID
@@ -344,7 +481,7 @@ FROM                CLARITY_App.dbo.Dim_Date                           AS dmdt
     LEFT OUTER JOIN CLARITY.dbo.IDENTITY_ID                            AS idx ON  idx.PAT_ID = appt.PAT_ID
                                                                               AND idx.IDENTITY_TYPE_ID = 14
 
-    LEFT OUTER JOIN CLARITY.dbo.IDENTITY_SER_ID                        AS isi ON  isi.PROV_ID = ser.PROV_ID -- 03/15/2019 -Tom B Add to extract IDENTITY_ID for join to Dim_Physcn
+    LEFT OUTER JOIN CLARITY.dbo.IDENTITY_SER_ID                        AS isi ON  isi.PROV_ID = ser.PROV_ID -- 03/26/2019 -Tom B Add to extract IDENTITY_ID for join to Dim_Physcn
                                                                               AND isi.IDENTITY_TYPE_ID = 6 -- IDNumber
                                                                               AND TRY_CONVERT(INT,isi.IDENTITY_ID) IS NOT NULL -- exclude IDs with alpha characters
 
@@ -383,15 +520,15 @@ FROM                CLARITY_App.dbo.Dim_Date                           AS dmdt
                         AND                 appt2.APPT_TIME >= @locstartdate
                         AND                 appt2.APPT_TIME < @locenddate
 						AND                 vrxhx2.VERIF_DATE_HX_DTTM <= appt2.APPT_TIME
-                    )                                                  AS vrxhx ON  vrxhx.PAT_ENC_CSN_ID = appt.PAT_ENC_CSN_ID -- 01/07/2019 -Tom B link latest verification to encounter
+                    )                                                  AS vrxhx ON  vrxhx.PAT_ENC_CSN_ID = appt.PAT_ENC_CSN_ID --01/07/2019 -Tom B link latest verification to encounter
                                                                                 --AND vrxhx.RECORD_ID = memlst.MEM_VERIFICATION_ID -- 01/07/2019 -Tom B removed respective join
                                                                                 AND vrxhx.Rw = '1' --last updated within the date range
     ----------------------------	
 
     ---BDD 6/8/2018 changed below to use the distinct view
-    LEFT OUTER JOIN CLARITY_App.Rptg.vwRef_MDM_Location_Master mdm				ON mdm.EPIC_DEPARTMENT_ID = appt.DEPARTMENT_ID
+    LEFT OUTER JOIN CLARITY_App.Rptg.vwRef_MDM_Location_Master         AS mdm ON mdm.EPIC_DEPARTMENT_ID = appt.DEPARTMENT_ID --03/26/2019 -Tom B Uncomment, use to get LOC_ID and REV_LOC_NAME
 
-    --LEFT OUTER JOIN CLARITY_App.Rptg.vwRef_MDM_Location_Master_EpicSvc AS mdm ON mdm.epic_department_id = appt.DEPARTMENT_ID
+    --LEFT OUTER JOIN CLARITY_App.Rptg.vwRef_MDM_Location_Master_EpicSvc AS mdm ON mdm.epic_department_id = appt.DEPARTMENT_ID --03/26/2019 -Tom B Comment out
 	
     LEFT OUTER JOIN CLARITY.dbo.CLARITY_EPP                            AS epp ON epp.BENEFIT_PLAN_ID = cvg.PLAN_ID
 
@@ -407,8 +544,8 @@ FROM                CLARITY_App.dbo.Dim_Date                           AS dmdt
 	LEFT OUTER JOIN CLARITY.dbo.CLARITY_EMP								AS harvrxuser	ON appt.APPT_ENTRY_USER_ID=harvrxuser.USER_ID
 
 	LEFT OUTER JOIN CLARITY.dbo.ZC_GUAR_VERIF_STAT						AS vrxsts		ON harvrf.VERIF_STATUS_C=vrxsts.GUAR_VERIF_STAT_C
-					   
-	LEFT OUTER JOIN dbo.Dim_Physcn                                      AS dp ON isi.IDENTITY_ID = dp.IDNumber -- 03/15/2019 -Tom B Add to extract key for join to vwRef_Crosswalk_HSEntity_Prov
+
+    LEFT OUTER JOIN dbo.Dim_Physcn                                      AS dp ON isi.IDENTITY_ID = dp.IDNumber -- 04/02/2019 -Tom B Used to extract sk_Dim_Physcn value
                                                                               AND dp.current_flag = 1
 
 ------
@@ -433,10 +570,11 @@ FROM                CLARITY_App.dbo.Dim_Date                           AS dmdt
                 -- -------------------------------------
     LEFT OUTER JOIN Stage.AmbOpt_Excluded_Department                    AS excl ON excl.DEPARTMENT_ID = appt.DEPARTMENT_ID
 
-	LEFT OUTER JOIN
+	LEFT OUTER JOIN -- 03/26/2019 -Tom B Add to extract standard columns from vwRef_Crosswalk_HSEntity_Prov
 	                (
-					    SELECT				sk_Dim_Physcn
-						                   ,dim_Physcn_PROV_ID
+					    SELECT				--sk_Dim_Physcn --04/2/2019 -Tom B Comment out
+						                   --,dim_Physcn_PROV_ID --04/2/2019 -Tom B Comment out
+										    PROV_ID --04/2/2019 -Tom B Utilize PROV_ID value added to view
 						                   ,SOMSeq
 										   ,Clrt_Financial_Division
 										   ,Clrt_Financial_Division_Name
@@ -446,35 +584,54 @@ FROM                CLARITY_App.dbo.Dim_Date                           AS dmdt
 										   ,wd_Dept_Code
 										   ,wd_Department_Name
 										   ,wd_Is_Primary_Job
+										   ,SOM_Department_ID
+										   ,SOM_Department
+										   ,SOM_Division_ID
+										   ,SOM_Division_Name
 					    FROM                (
-						                        SELECT DISTINCT		sk_Dim_Physcn
-												                   ,dim_Physcn_PROV_ID
-												                   --,ROW_NUMBER() OVER (PARTITION BY dim_Physcn_PROV_ID ORDER BY cw_Legacy_src_system) AS [SOMSeq]
-												                   ,ROW_NUMBER() OVER (PARTITION BY sk_Dim_Physcn ORDER BY cw_Legacy_src_system) AS [SOMSeq]
-																   ,Clrt_Financial_Division
-																   ,Clrt_Financial_Division_Name
-																   ,Clrt_Financial_SubDivision
-																   ,Clrt_Financial_SubDivision_Name
-																   ,SOM_DEPT_ID
-																   ,wd_Dept_Code
-																   ,wd_Department_Name
-																   ,wd_Is_Primary_Job
-					                            FROM				Rptg.vwRef_Crosswalk_HSEntity_Prov
-												WHERE				ISNULL(wd_Is_Primary_Job,1) = 1
-																	--AND Som_DEPT_ID IS NOT NULL
+                                                SELECT
+													--hse.sk_Dim_Physcn, --04/2/2019 -Tom B Comment out
+													--hse.dim_Physcn_PROV_ID, --04/2/2019 -Tom B Comment out
+													hse.PROV_ID, --04/2/2019 -Tom B Utilize PROV_ID value added to view
+													--ROW_NUMBER() OVER (PARTITION BY hse.sk_Dim_Physcn ORDER BY hse.cw_Legacy_src_system) AS [SOMSeq], --04/2/2019 -Tom B Comment out
+													ROW_NUMBER() OVER (PARTITION BY hse.PROV_ID ORDER BY hse.cw_Legacy_src_system) AS [SOMSeq], --04/2/2019 -Tom B Use PROV_ID to partition
+             										Clrt_Financial_Division = CASE WHEN ISNUMERIC(hse.Clrt_Financial_Division) = 0 THEN CAST(NULL AS INT) ELSE CAST(hse.Clrt_Financial_Division AS INT) END,
+			    									Clrt_Financial_Division_Name = CASE WHEN hse.Clrt_Financial_Division_Name = 'na' THEN CAST(NULL AS VARCHAR(150)) ELSE CAST (hse.Clrt_Financial_Division AS VARCHAR(150)) END,
+													Clrt_Financial_SubDivision = CASE WHEN ISNUMERIC(hse.Clrt_Financial_SubDivision) = 0 THEN CAST(NULL AS INT) ELSE CAST(hse.Clrt_Financial_SubDivision AS INT) END, 
+													Clrt_Financial_SubDivision_Name = CASE WHEN hse.Clrt_Financial_SubDivision_Name = 'na' THEN CAST(NULL AS VARCHAR(150)) ELSE CAST(hse.Clrt_Financial_SubDivision_Name AS VARCHAR(150)) END,
+													hse.SOM_DEPT_ID,
+													hse.wd_Dept_Code,
+													hse.wd_Department_Name,
+													hse.wd_Is_Primary_Job,
+													som.SOM_Department_ID,
+													som.SOM_Department,
+													som.SOM_Division_ID,
+													som.SOM_Division_Name
+												FROM Rptg.vwRef_Crosswalk_HSEntity_Prov AS hse
+												   LEFT OUTER JOIN (SELECT DISTINCT SOM_Department_ID,
+																					SOM_Department,
+																					SOM_Division_ID,
+																					SOM_Division_Name
+																	   FROM Rptg.vwRef_SOM_Hierarchy
+																   ) AS som
+																  ON hse.wd_department_name = som.SOM_Division_Name
+												WHERE ISNULL(hse.wd_Is_Primary_Job,1) = 1
+
 											) wd
-					--)													AS uwd ON uwd.dim_Physcn_PROV_ID = CAST(isi.IDENTITY_ID AS INTEGER)
-					)													AS uwd ON uwd.sk_Dim_Physcn = dp.sk_Dim_Physcn
-																				  AND uwd.SOMSeq = 1
+					--) AS uwd ON uwd.sk_Dim_Physcn = dp.sk_Dim_Physcn --04/2/2019 -Tom B Comment out
+					) AS uwd ON uwd.PROV_ID = appt.VISIT_PROV_ID --04/2/2019 -Tom B Join to encounter provider id
+					  	     AND uwd.SOMSeq = 1
 
 WHERE               1 = 1
 
-AND                 DATEDIFF(DAY, appt.APPT_MADE_DTTM, appt.APPT_TIME) >= @locdt -- 3/14/2019 Tom Exclude appointments created within 5 days of appointment date
+----BDD 4/1/2019 changed below to eliminate function in Where clause
+---AND                 DATEDIFF(DAY, appt.APPT_MADE_DTTM, appt.APPT_TIME) >= @locdt -- 3/26/2019 Tom Exclude appointments created within 5 days of appointment date
+AND                 appt.Appt_Made_Days >= @locdt
+-----
 AND                 dmdt.day_date >= @locstartdate
 AND                 dmdt.day_date < @locenddate
+
 AND                 excl.DEPARTMENT_ID IS NULL
---AND                 mdm.LOC_ID <> '10376'
---AND                 appt.VISIT_PROV_ID = '61341'
 
 --ORDER BY            event_date;
 
@@ -505,7 +662,7 @@ FROM #HAR
 ORDER BY sk_Dim_Physcn, PAT_ENC_CSN_ID
 
 SELECT har.PAT_ENC_CSN_ID
-      ,har.w_rev_name
+      ,har.rev_location
 	  --,wd.dim_Physcn_PROV_ID
 	  --,wd.Clrt_Financial_Division
 	  --,wd.Clrt_Financial_Division_Name
@@ -516,18 +673,16 @@ SELECT har.PAT_ENC_CSN_ID
 	  --,wd.wd_Department_Name
 	  --,wd.wd_Is_Primary_Job
 	  ,har.sk_Dim_Physcn
-	  ,dim_Physcn_PROV_ID
-	  ,har.w_financial_division_id
-	  ,har.w_financial_division_name
-	  ,har.w_financial_sub_division_id
-	  ,har.w_financial_sub_division_name
-	  ,har.w_som_department_id
-	  ,har.w_som_division_id
-	  ,har.w_som_division_name
-	  ,har.wd_Is_Primary_Job
+	  ,har.financial_division_id
+	  ,har.financial_division_name
+	  ,har.financial_sub_division_id
+	  ,har.financial_sub_division_name
+	  ,har.som_department_id
+	  ,har.som_division_id
+	  ,har.som_division_name
 --SELECT *
      --, ROW_NUMBER() OVER (PARTITION BY PAT_ENC_CSN_ID ORDER BY w_som_division_id) AS [EncSeq]
-     , ROW_NUMBER() OVER (PARTITION BY har.PAT_ENC_CSN_ID ORDER BY har.w_rev_name) AS [EncSeq]
+     , ROW_NUMBER() OVER (PARTITION BY har.PAT_ENC_CSN_ID ORDER BY har.rev_location) AS [EncSeq]
 INTO #HAR2
 FROM #HAR har
 	--LEFT OUTER JOIN (SELECT DISTINCT
@@ -562,7 +717,7 @@ FROM #HAR2
 ORDER BY sk_Dim_Physcn
        , PAT_ENC_CSN_ID
        --, w_som_division_id
-       , w_rev_name
+       , rev_location
 	   , EncSeq
 
 SELECT DISTINCT sk_Dim_Physcn, PAT_ENC_CSN_ID
@@ -573,14 +728,6 @@ WHERE [EncSeq] > 1
 SELECT *
 FROM #HAR3
 ORDER BY sk_Dim_Physcn, PAT_ENC_CSN_ID
-/*
-SELECT har.*
-FROM #HAR har
-INNER JOIN #HAR3 har3
-ON har.PAT_ENC_CSN_ID = har3.PAT_ENC_CSN_ID
-ORDER BY            har.dim_Physcn_PROV_ID, PAT_ENC_CSN_ID;
-*/
-
 GO
 
 
