@@ -415,7 +415,7 @@ FROM                CLARITY_App.dbo.Dim_Date                           AS dmdt
 									  ,sched.APPT_MADE_DTTM
 
 				                       ----BDD 04/01/2019 added calcd column to help eliminate function from final where clause
-    				                  ,DATEDIFF(DAY, sched.APPT_MADE_DTTM, enc.APPT_TIME) AS Appt_Made_Days 
+    				                  ,DATEDIFF(DAY, sched.APPT_MADE_DTTM, enc.APPT_TIME) AS Appt_Made_Days
 
                         FROM           CLARITY.dbo.PAT_ENC       AS enc					--12/17/2018 -Tom B Replaced V_SCHED_APPT with PAT_ENC
                             INNER JOIN CLARITY.dbo.HSP_ACCOUNT_3 AS har ON har.HSP_ACCOUNT_ID = enc.HSP_ACCOUNT_ID
