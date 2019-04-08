@@ -7,89 +7,16 @@ GO
 SET QUOTED_IDENTIFIER ON
 GO
 
-DECLARE @startdate SMALLDATETIME = NULL
-       ,@enddate SMALLDATETIME = NULL
-
---SET @startdate = '7/20/2018 00:00 AM'
---SET @enddate = '7/20/2018 11:59 PM'
---SET @startdate = '6/5/2018 00:00 AM'
---SET @enddate = '6/5/2018 11:59 PM'
---SET @startdate = '6/4/2018 00:00 AM'
---SET @enddate = '6/6/2018 11:59 PM'
-SET @startdate = '2/1/2019 00:00 AM'
---SET @startdate = '7/1/2018 00:00 AM'
-SET @enddate = '2/28/2019 11:59 PM'
-
-DECLARE @Department TABLE (DepartmentId NUMERIC(18,0))
-
-INSERT INTO @Department
-(
-    DepartmentId
-)
-VALUES
--- (10210006)
---,(10210040)
---,(10210041)
---,(10211006)
---,(10214011)
---,(10214014)
---,(10217003)
---,(10239017)
---,(10239018)
---,(10239019)
---,(10239020)
---,(10241001)
---,(10242007)
---,(10242049)
---,(10243003)
---,(10244004)
---,(10348014)
---,(10354006)
---,(10354013)
---,(10354014)
---,(10354015)
---,(10354016)
---,(10354017)
---,(10354024)
---,(10354034)
---,(10354042)
---,(10354044)
---,(10354052)
---,(10354055)
- --(10214011)
- --(10210006)
- (10280004) -- AUBL PEDIATRICS
- --(10341002) -- CVPE UVA RHEU INF PNTP
- --(10228008) -- NRDG MAMMOGRAPHY
- --(10381003) -- UVEC RAD CT
- --(10354032) -- UVBB PHYSICAL THER FL4
-;
-
-DECLARE @Provider TABLE (ProviderId VARCHAR(18))
-
-INSERT INTO @Provider
-(
-    ProviderId
-)
-VALUES
- ('28813') -- FISHER, JOSEPH D
- --('1300563') -- ARTH INF
- --('41806') -- NORTHRIDGE DEXA
- --('1301100') -- CT6
- --('82262') -- CT APPOINTMENT ERC
- --('40758') -- PAYNE, PATRICIA
-;
-
 -- =====================================================================================
 -- Create procedure uspSrc_AmbOpt_Slot_Utilization
 -- =====================================================================================
 
---ALTER PROCEDURE [ETL].[uspSrc_AmbOpt_Slot_Utilization]
---    (
---     @startdate SMALLDATETIME = NULL
---    ,@enddate SMALLDATETIME = NULL
---    )
---AS
+ALTER PROCEDURE [ETL].[uspSrc_AmbOpt_Slot_Utilization]
+    (
+     @startdate SMALLDATETIME = NULL
+    ,@enddate SMALLDATETIME = NULL
+    )
+AS
 --/**********************************************************************************************************************
 --WHAT: Create procedure ETL.uspSrc_AmbOpt_Slot_Utilization
 --WHO : Tom Burgan
@@ -117,7 +44,6 @@ VALUES
 --       05/16/2018 - TMB - create stored procedure
 --       08/22/2018 - TMB - edit stored procedure to include both slot and appointment level utilization counts
 --       04/08/2019 - TMB - add new standard columns
---       04/08/2019 - TMB - add BUSINESS_UNIT
 --************************************************************************************************************************
 
     SET NOCOUNT ON;
@@ -132,23 +58,6 @@ DECLARE @slotstartdate DATETIME,
 SET @slotstartdate = CAST(@startdate AS DATETIME)
 SET @slotenddate   = CAST(@enddate AS DATETIME)
 -------------------------------------------------------------------------------
-
---SELECT @slotstartdate, @slotenddate
-
-if OBJECT_ID('tempdb..#datetable') is not NULL
-DROP TABLE #datetable
-
-if OBJECT_ID('tempdb..#utilsum') is not NULL
-DROP TABLE #utilsum
-
-if OBJECT_ID('tempdb..#util') is not NULL
-DROP TABLE #util
-
-if OBJECT_ID('tempdb..#utildatetable') is not NULL
-DROP TABLE #utildatetable
-
-if OBJECT_ID('tempdb..#RptgTable') is not NULL
-DROP TABLE #RptgTable
 
 SELECT date_dim.day_date
       ,date_dim.fmonth_num
@@ -316,87 +225,86 @@ CROSS JOIN #datetable dt
 
 ---------------------------------------------------------------------------------------
 --08/23/2018 BDD - insert to stage added. Assumes prior truncation handled in SSIS package
---INSERT Stage.AmbOpt_Dash_Slot_Utilization
---           (event_type
---           ,event_count
---           ,event_date
---           ,fmonth_num
---           ,Fyear_num
---           ,FYear_name
---           ,report_period
---           ,report_date
---           ,event_category
---           ,pod_id
---           ,pod_name
---           ,hub_id
---           ,hub_name
---           ,epic_department_id
---           ,epic_department_name
---           ,epic_department_name_external
---           ,peds
---           ,transplant
---           ,sk_Dim_Pt
---           ,sk_Fact_Pt_Acct
---           ,sk_Fact_Pt_Enc_Clrt
---           ,person_birth_date
---           ,person_gender
---           ,person_id
---           ,person_name
---           ,practice_group_id
---           ,practice_group_name
---           ,provider_id
---           ,provider_name
---           ,service_line_id
---           ,service_line
---           ,prov_service_line_id
---           ,prov_service_line
---           ,sub_service_line_id
---           ,sub_service_line
---           ,opnl_service_id
---           ,opnl_service_name
---           ,corp_service_line_id
---           ,corp_service_line
---           ,hs_area_id
---           ,hs_area_name
---           ,prov_hs_area_id
---           ,prov_hs_area_name
---           ,Regular_Openings
---           ,Overbook_Openings
---           ,Openings_Booked
---           ,Regular_Openings_Available
---           ,Regular_Openings_Unavailable
---           ,Overbook_Openings_Available
---           ,Overbook_Openings_Unavailable
---           ,Regular_Openings_Booked
---           ,Overbook_Openings_Booked
---           ,Regular_Outside_Template_Booked
---           ,Overbook_Outside_Template_Booked
---           ,Regular_Openings_Available_Booked
---           ,Overbook_Openings_Available_Booked
---           ,Regular_Openings_Unavailable_Booked
---           ,Overbook_Openings_Unavailable_Booked
---           ,Regular_Outside_Template_Available_Booked
---           ,Overbook_Outside_Template_Available_Booked
---           ,Regular_Outside_Template_Unavailable_Booked
---           ,Overbook_Outside_Template_Unavailable_Booked
---           ,STAFF_RESOURCE_C
---           ,STAFF_RESOURCE
---           ,PROVIDER_TYPE_C
---           ,PROV_TYPE
---           ,som_group_id
---           ,som_group_name
---           ,rev_location_id
---           ,rev_location
---           ,financial_division_id
---           ,financial_division_name
---           ,financial_sub_division_id
---           ,financial_sub_division_name
---           ,som_department_id
---           ,som_department_name
---           ,som_division_id
---           ,som_division_name
---           ,BUSINESS_UNIT -- VARCHAR(20)
---		   )
+INSERT Stage.AmbOpt_Dash_Slot_Utilization
+           (event_type
+           ,event_count
+           ,event_date
+           ,fmonth_num
+           ,Fyear_num
+           ,FYear_name
+           ,report_period
+           ,report_date
+           ,event_category
+           ,pod_id
+           ,pod_name
+           ,hub_id
+           ,hub_name
+           ,epic_department_id
+           ,epic_department_name
+           ,epic_department_name_external
+           ,peds
+           ,transplant
+           ,sk_Dim_Pt
+           ,sk_Fact_Pt_Acct
+           ,sk_Fact_Pt_Enc_Clrt
+           ,person_birth_date
+           ,person_gender
+           ,person_id
+           ,person_name
+           ,practice_group_id
+           ,practice_group_name
+           ,provider_id
+           ,provider_name
+           ,service_line_id
+           ,service_line
+           ,prov_service_line_id
+           ,prov_service_line
+           ,sub_service_line_id
+           ,sub_service_line
+           ,opnl_service_id
+           ,opnl_service_name
+           ,corp_service_line_id
+           ,corp_service_line
+           ,hs_area_id
+           ,hs_area_name
+           ,prov_hs_area_id
+           ,prov_hs_area_name
+           ,Regular_Openings
+           ,Overbook_Openings
+           ,Openings_Booked
+           ,Regular_Openings_Available
+           ,Regular_Openings_Unavailable
+           ,Overbook_Openings_Available
+           ,Overbook_Openings_Unavailable
+           ,Regular_Openings_Booked
+           ,Overbook_Openings_Booked
+           ,Regular_Outside_Template_Booked
+           ,Overbook_Outside_Template_Booked
+           ,Regular_Openings_Available_Booked
+           ,Overbook_Openings_Available_Booked
+           ,Regular_Openings_Unavailable_Booked
+           ,Overbook_Openings_Unavailable_Booked
+           ,Regular_Outside_Template_Available_Booked
+           ,Overbook_Outside_Template_Available_Booked
+           ,Regular_Outside_Template_Unavailable_Booked
+           ,Overbook_Outside_Template_Unavailable_Booked
+           ,STAFF_RESOURCE_C
+           ,STAFF_RESOURCE
+           ,PROVIDER_TYPE_C
+           ,PROV_TYPE
+           ,som_group_id
+           ,som_group_name
+           ,rev_location_id
+           ,rev_location
+           ,financial_division_id
+           ,financial_division_name
+           ,financial_sub_division_id
+           ,financial_sub_division_name
+           ,som_department_id
+           ,som_department_name
+           ,som_division_id
+           ,som_division_name
+		   )
 SELECT 
        CAST('Slot Utilization' AS VARCHAR(50)) AS event_type
       ,CASE WHEN util.SLOT_BEGIN_DATE IS NOT NULL THEN 1
@@ -480,8 +388,6 @@ SELECT
 	  ,CAST(uwd.SOM_Department AS VARCHAR(150)) AS som_department_name
 	  ,CAST(uwd.SOM_Division_ID AS INT)	AS som_division_id
 	  ,CAST(uwd.SOM_Division_Name AS VARCHAR(150)) AS som_division_name
-	  ,mdm.BUSINESS_UNIT
-INTO #RptgTable
 FROM
     #utildatetable AS date_dim
 LEFT OUTER JOIN
@@ -559,7 +465,6 @@ LEFT OUTER JOIN
           ,corp_service_line
           ,hs_area_id
           ,hs_area_name
-		  ,BUSINESS_UNIT
 	FROM
     (
         SELECT DISTINCT
@@ -582,7 +487,6 @@ LEFT OUTER JOIN
               ,corp_service_line
               ,hs_area_id
               ,hs_area_name
-			  ,BUSINESS_UNIT
 	    FROM CLARITY_App.Rptg.vwRef_MDM_Location_Master) mdm_LM
 ) AS mdm
 ON (mdm.EPIC_DEPARTMENT_ID = date_dim.DEPARTMENT_ID) --04/08/2019 -Tom B Use to get LOC_ID and REV_LOC_NAME
@@ -644,23 +548,6 @@ LEFT OUTER JOIN -- 04/08/2019 -Tom B Add to extract standard columns from vwRef_
 WHERE
       ((date_dim.day_date >= @slotstartdate) AND (date_dim.day_date < @slotenddate))
       AND excl.DEPARTMENT_ID IS NULL
-
-SELECT *
-FROM #RptgTable
---ORDER BY date_dim.DEPARTMENT_ID
---		,date_dim.PROV_ID
---		,date_dim.day_date;
-ORDER BY event_date
-        ,event_count DESC
-		,epic_department_id
-		,provider_id;
-
---SELECT DISTINCT
---    STAFF_RESOURCE
---   ,PROV_TYPE
---FROM #RptgTable
---ORDER BY STAFF_RESOURCE
---        ,PROV_TYPE
 
 GO
 
