@@ -16,6 +16,7 @@ GO
 --MODS: 	
 --         03/25/2019 - Tom		-- create stored procedure
 --         03/27/2019 - Tom     -- use w_service_line_id, w_opnl_service_id for service line parameter
+--         04/05/2019 - TMB     -- add APPT_MADE_DTTM, BUSINESS_UNIT, Prov_Typ, and new wrapper columns to extract
 --************************************************************************************************************************
 ALTER PROCEDURE [Rptg].[uspSrc_AmbOpt_NoShowRate_SSRS_Download]
     @StartDate SMALLDATETIME,
@@ -117,7 +118,20 @@ SELECT
 	   appt_event_Provider_Canceled,
 	   appt_event_Completed,
 	   appt_event_Arrived,
-	   PHONE_REM_STAT_NAME
+	   PHONE_REM_STAT_NAME,
+	   APPT_MADE_DTTM,
+	   BUSINESS_UNIT,
+	   Prov_Typ,
+	   w_rev_location_id,
+	   w_rev_location,
+	   w_som_department_id,
+	   w_som_department_name,
+	   w_financial_division_id,
+	   w_financial_division_name,
+	   w_financial_sub_division_id,
+	   w_financial_sub_division_name,
+	   w_som_division_id,
+	   w_som_division_name
 FROM [DS_HSDM_App].[TabRptg].[Dash_AmbOpt_ScheduledAppointmentMetric_Tiles] tabrptg
 LEFT OUTER JOIN DS_HSDW_Prod.Rptg.vwFact_Pt_Enc_Clrt enc
 ON enc.sk_Fact_Pt_Enc_Clrt = tabrptg.sk_Fact_Pt_Enc_Clrt

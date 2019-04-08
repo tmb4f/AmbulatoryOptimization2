@@ -259,6 +259,12 @@ FROM @Hub
 -- Create date: 03/25/2019
 -- Description:	No Show Rate Data Portal SSRS export script
 -- =========================================================
+--------------------------------------------------------------------------------------------------------------------------
+--MODS: 	
+--         03/25/2019 - Tom		-- create stored procedure
+--         03/27/2019 - Tom     -- use w_service_line_id, w_opnl_service_id for service line parameter
+--         04/05/2019 - TMB     -- add APPT_MADE_DTTM, BUSINESS_UNIT, Prov_Typ, and new wrapper columns to extract
+--************************************************************************************************************************
 --ALTER PROCEDURE [Rptg].[uspSrc_AmbOpt_NoShowRate_SSRS_Download]
 --    @StartDate SMALLDATETIME,
 --    @EndDate SMALLDATETIME,
@@ -336,18 +342,6 @@ SELECT
        w_department_id,
        w_department_name,
        w_department_name_external,
-	   w_financial_division_id,
-	   w_financial_division_name,
-	   w_financial_sub_division_id,
-	   w_financial_sub_division_name,
-	   w_rev_location_id,
-	   w_rev_location,
-	   w_som_group_id,
-	   w_som_group_name,
-	   w_som_department_id,
-	   w_som_department_name,
-	   w_som_division_id,
-	   w_som_division_name,
        peds,
        transplant,
        person_id,
@@ -375,7 +369,17 @@ SELECT
 	   APPT_MADE_DTTM,
 	   BUSINESS_UNIT,
 	   Prov_Typ,
-	   Staff_Resource
+	   w_rev_location_id,
+	   w_rev_location,
+	   w_som_department_id,
+	   w_som_department_name,
+	   w_financial_division_id,
+	   w_financial_division_name,
+	   w_financial_sub_division_id,
+	   w_financial_sub_division_name,
+	   w_som_division_id,
+	   w_som_division_name
+
 FROM [DS_HSDM_App].[TabRptg].[Dash_AmbOpt_ScheduledAppointmentMetric_Tiles] tabrptg
 LEFT OUTER JOIN DS_HSDW_Prod.Rptg.vwFact_Pt_Enc_Clrt enc
 ON enc.sk_Fact_Pt_Enc_Clrt = tabrptg.sk_Fact_Pt_Enc_Clrt
@@ -410,7 +414,7 @@ WHERE 1 = 1
       )
       AND
       (
-          '0' IN
+          0 IN
           (
               SELECT pod_id FROM @tab_pods
           )
@@ -421,7 +425,7 @@ WHERE 1 = 1
       )
       AND
       (
-          '0' IN
+          0 IN
           (
               SELECT pod_id FROM @tab_podid
           )
@@ -432,7 +436,7 @@ WHERE 1 = 1
       )
       AND
       (
-          '0' IN
+          0 IN
           (
               SELECT hub_id FROM @tab_hubs
           )
@@ -443,7 +447,7 @@ WHERE 1 = 1
       )
       AND
       (
-          '0' IN
+          0 IN
           (
               SELECT hub_id FROM @tab_hubid
           )
@@ -462,8 +466,9 @@ WHERE 1 = 1
              (
                  SELECT Service_Line_Id FROM @tab_servLine
              )
-      );
+      )--;
 
+ORDER BY [No Show] DESC
 GO
 
 
