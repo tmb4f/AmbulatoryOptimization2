@@ -44,6 +44,7 @@ AS
 --       05/16/2018 - TMB - create stored procedure
 --       08/22/2018 - TMB - edit stored procedure to include both slot and appointment level utilization counts
 --       04/08/2019 - TMB - add new standard columns
+--       04/08/2019 - TMB - add BUSINESS_UNIT
 --************************************************************************************************************************
 
     SET NOCOUNT ON;
@@ -304,6 +305,7 @@ INSERT Stage.AmbOpt_Dash_Slot_Utilization
            ,som_department_name
            ,som_division_id
            ,som_division_name
+           ,BUSINESS_UNIT -- VARCHAR(20)
 		   )
 SELECT 
        CAST('Slot Utilization' AS VARCHAR(50)) AS event_type
@@ -388,6 +390,7 @@ SELECT
 	  ,CAST(uwd.SOM_Department AS VARCHAR(150)) AS som_department_name
 	  ,CAST(uwd.SOM_Division_ID AS INT)	AS som_division_id
 	  ,CAST(uwd.SOM_Division_Name AS VARCHAR(150)) AS som_division_name
+	  ,mdm.BUSINESS_UNIT
 FROM
     #utildatetable AS date_dim
 LEFT OUTER JOIN
@@ -465,6 +468,7 @@ LEFT OUTER JOIN
           ,corp_service_line
           ,hs_area_id
           ,hs_area_name
+		  ,BUSINESS_UNIT
 	FROM
     (
         SELECT DISTINCT
@@ -487,6 +491,7 @@ LEFT OUTER JOIN
               ,corp_service_line
               ,hs_area_id
               ,hs_area_name
+			  ,BUSINESS_UNIT
 	    FROM CLARITY_App.Rptg.vwRef_MDM_Location_Master) mdm_LM
 ) AS mdm
 ON (mdm.EPIC_DEPARTMENT_ID = date_dim.DEPARTMENT_ID) --04/08/2019 -Tom B Use to get LOC_ID and REV_LOC_NAME
