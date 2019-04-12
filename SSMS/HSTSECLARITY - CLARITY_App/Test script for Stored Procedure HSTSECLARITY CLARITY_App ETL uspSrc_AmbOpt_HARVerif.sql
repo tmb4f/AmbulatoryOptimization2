@@ -97,9 +97,10 @@ SET @enddate = '2/9/2019 11:59 PM'
 --         03/28/2019 - BDD     ---cast various columns as proper data type for portal tables, replaced spaces in output column name with _
 --         03/28/2019 - BDD     ---removed w_ from new column names to match other portal processes. corrected mdm column names
 --         03/28/2019 - BDD     ---replaced select * with column list
---         04/02/2019 - TMB     -- edited logic to join encounter to Rptg.vwRef_Crosswalk_HSEntity_Prov using PROV_ID
+--         04/02/2019 - Tom     -- edited logic to join encounter to Rptg.vwRef_Crosswalk_HSEntity_Prov using PROV_ID
 --         04/04/2019 - TMB     -- added columns CANCEL_INITIATOR, CANCEL_LEAD_HOURS, Cancel_Lead_Days,
 --                                  appt_event_Canceled, appt_event_Canceled_Late, appt_event_Provider_Canceled
+--         04/09/2019 - TMB     -- add columns STAFF_RESOURCE_C, STAFF_RESOURCE, PROVIDER_TYPE_C, PROV_TYPE, BUSINESS_UNIT
 --************************************************************************************************************************
 
 SET NOCOUNT ON;
@@ -275,24 +276,30 @@ SELECT DISTINCT
 				   ,uwd.Clrt_Financial_SubDivision_Name																		 AS financial_sub_division_name
 
 --				   ,uwd.SOM_DEPT_ID                                                                                          AS som_department_id
-				   ,CAST(uwd.SOM_Department_ID AS INT)																		 AS som_department_id    ---bdd 3/29/2019 temp until ref table built
-				   ,CAST(uwd.SOM_Department AS VARCHAR(150))                                                                 AS som_department_name
-				   ,CAST(uwd.SOM_Division_ID AS INT)                                                                         AS som_division_id
+				   ,CAST(uwd.SOM_Department_ID AS INT)  AS som_department_id    ---bdd 3/29/2019 temp until ref table built
+				   ,CAST(uwd.SOM_Department AS VARCHAR(150))																 AS som_department_name
+				   ,CAST(uwd.SOM_Division_ID AS INT)																		 AS som_division_id
 				   ,CAST(uwd.SOM_Division_Name AS VARCHAR(150))                                                              AS som_division_name
 
-				   ,CAST(appt.CANCEL_INITIATOR AS VARCHAR(55))                                                               AS CANCEL_INITIATOR -- VARCHAR(55)
-				   ,CAST(appt.CANCEL_LEAD_HOURS AS INTEGER)                                                                  AS CANCEL_LEAD_HOURS -- INTEGER
-				   ,appt.Cancel_Lead_Days -- INTEGER
+				   ,CAST(appt.CANCEL_INITIATOR AS VARCHAR(55))                                                               AS CANCEL_INITIATOR
+				   ,CAST(appt.CANCEL_LEAD_HOURS AS INTEGER)                                                                  AS CANCEL_LEAD_HOURS
+				   ,appt.Cancel_Lead_Days
 				   ,CASE WHEN appt.APPT_STATUS_C = 3 AND appt.CANCEL_INITIATOR = 'PATIENT' AND appt.CANCEL_LEAD_HOURS < 24.0 THEN 0
 				         WHEN appt.APPT_STATUS_C = 3 THEN 1
 						 ELSE 0
-					END AS appt_event_Canceled -- INTEGER
+					END AS appt_event_Canceled
 				   ,CASE WHEN appt.APPT_STATUS_C = 3 AND appt.CANCEL_INITIATOR = 'PATIENT' AND appt.CANCEL_LEAD_HOURS < 24.0 THEN 1
 						 ELSE 0
-					END AS appt_event_Canceled_Late -- INTEGER
+					END AS appt_event_Canceled_Late
 				   ,CASE WHEN appt.APPT_STATUS_C = 3 AND appt.CANCEL_INITIATOR = 'PROVIDER' THEN 1
 						 ELSE 0
-					END AS appt_event_Provider_Canceled -- INTEGER
+					END AS appt_event_Provider_Canceled
+					
+	               ,ser.STAFF_RESOURCE_C -- INTEGER
+	               ,ser.STAFF_RESOURCE -- VARCHAR(20)
+	               ,ser.PROVIDER_TYPE_C -- VARCHAR(66)
+	               ,ser.PROV_TYPE -- VARCHAR(66)
+				   ,mdm.BUSINESS_UNIT -- VARCHAR(20)
 
 INTO                #HAR
 
@@ -446,7 +453,7 @@ FROM                CLARITY_App.dbo.Dim_Date                           AS dmdt
 				                       ----BDD 04/01/2019 added calcd column to help eliminate function from final where clause
     				                  ,DATEDIFF(DAY, sched.APPT_MADE_DTTM, enc.APPT_TIME) AS Appt_Made_Days
 
-									  ,CASE									--4/4/2019 -Tom B Cancel initiator								
+									  ,CASE									--4/4/2019 -Tom B Create cancel initiator								
                                          WHEN sched.CANCEL_REASON_C IS NULL THEN NULL
                                          WHEN canc.CANCEL_REASON_C IS NULL THEN '*Unknown cancel reason [' + CONVERT(VARCHAR, sched.cancel_reason_c) + ']'
                                          WHEN (SELECT COUNT(PAT_INIT_CANC_C) FROM CLARITY.dbo.PAT_INIT_CANC 
@@ -465,41 +472,7 @@ FROM                CLARITY_App.dbo.Dim_Date                           AS dmdt
                             LEFT OUTER JOIN CLARITY.dbo.ZC_CANCEL_REASON canc ON sched.CANCEL_REASON_C = canc.CANCEL_REASON_C		--             cancel initiator and lead time
 
                         WHERE          1 = 1
-          --              AND
-          --                             (
-          --                                 enc.APPT_STATUS_C NOT IN ('3')			----12/13/2018  Add to replicate Tom B. Query     replaced >IN ( '6', '2', '1','4','5' ) --arrived/Completed/Scheduled/No show/Left without seen  
-          --                           OR
-          --                            (
-          --                                enc.APPT_STATUS_C = '3' --if cancelled, patient-initiated
-										--AND CASE									--12/17/2018 -Tom B Cancel initiator filter								
-          --                                    WHEN sched.CANCEL_REASON_C IS NULL THEN NULL
-          --                                    WHEN canc.CANCEL_REASON_C IS NULL THEN '*Unknown cancel reason [' + CONVERT(VARCHAR, sched.cancel_reason_c) + ']'
-          --                                    WHEN (SELECT COUNT(PAT_INIT_CANC_C) FROM CLARITY.dbo.PAT_INIT_CANC 
-          --                                          WHERE PAT_INIT_CANC_C=canc.CANCEL_REASON_C) >= 1 THEN 'PATIENT'
-          --                                    WHEN (SELECT COUNT(PROV_INIT_CANC_C) FROM CLARITY.dbo.PROV_INIT_CANC 
-          --                                          WHERE PROV_INIT_CANC_C=canc.CANCEL_REASON_C) >= 1 THEN 'PROVIDER'
-          --                                    ELSE 'OTHER'
-          --                                  END = 'PATIENT'
-										--AND CAST((DATEDIFF(MINUTE, sched.APPT_CANC_DTTM, sched.APPT_DTTM) / 60) AS NUMERIC(8,2)) < 24.0 --12/17/2018 -Tom B Cancel lead time filter
-
-          --                            )
-          --                           OR
-          --                            (
-          --                                enc.APPT_STATUS_C = '3' --if cancelled, provider-initiated -- 1/7/2019 -Tom B Add to replicate logic used to compute denominator for No Show and Bump Rate metrics
-										--AND CASE						
-          --                                    WHEN sched.CANCEL_REASON_C IS NULL THEN NULL
-          --                                    WHEN canc.CANCEL_REASON_C IS NULL THEN '*Unknown cancel reason [' + CONVERT(VARCHAR, sched.cancel_reason_c) + ']'
-          --                                    WHEN (SELECT COUNT(PAT_INIT_CANC_C) FROM CLARITY.dbo.PAT_INIT_CANC 
-          --                                          WHERE PAT_INIT_CANC_C=canc.CANCEL_REASON_C) >= 1 THEN 'PATIENT'
-          --                                    WHEN (SELECT COUNT(PROV_INIT_CANC_C) FROM CLARITY.dbo.PROV_INIT_CANC 
-          --                                          WHERE PROV_INIT_CANC_C=canc.CANCEL_REASON_C) >= 1 THEN 'PROVIDER'
-          --                                    ELSE 'OTHER'
-          --                                  END = 'PROVIDER'
-										--AND DATEDIFF(DAY, CAST(sched.APPT_CANC_DTTM AS DATE), CAST(sched.APPT_DTTM AS DATE)) <= 45
-
-          --                            )
-          --                             )
-                       -- AND            acct.ACCT_BASECLS_HA_C = '2' --outpatient				--12/13/2018 -Mali remove filter for Outpatient per request from KF ****
+                        -- AND            acct.ACCT_BASECLS_HA_C = '2' --outpatient				--12/13/2018 -Mali remove filter for Outpatient per request from KF ****
                         AND            enc.APPT_TIME >= @locstartdate
                         AND            enc.APPT_TIME < @locenddate
                     )                                                  AS appt ON CAST(appt.APPT_TIME AS DATE) = CAST(dmdt.day_date AS DATE)
@@ -522,7 +495,7 @@ FROM                CLARITY_App.dbo.Dim_Date                           AS dmdt
     LEFT OUTER JOIN CLARITY.dbo.IDENTITY_ID                            AS idx ON  idx.PAT_ID = appt.PAT_ID
                                                                               AND idx.IDENTITY_TYPE_ID = 14
 
-    LEFT OUTER JOIN CLARITY.dbo.IDENTITY_SER_ID                        AS isi ON  isi.PROV_ID = ser.PROV_ID -- 3/26/2019 -Tom B Add to extract IDENTITY_ID for join to Dim_Physcn
+    LEFT OUTER JOIN CLARITY.dbo.IDENTITY_SER_ID                        AS isi ON  isi.PROV_ID = ser.PROV_ID -- 03/26/2019 -Tom B Add to extract IDENTITY_ID for join to Dim_Physcn
                                                                               AND isi.IDENTITY_TYPE_ID = 6 -- IDNumber
                                                                               AND TRY_CONVERT(INT,isi.IDENTITY_ID) IS NOT NULL -- exclude IDs with alpha characters
 
@@ -567,9 +540,9 @@ FROM                CLARITY_App.dbo.Dim_Date                           AS dmdt
     ----------------------------	
 
     ---BDD 6/8/2018 changed below to use the distinct view
-    LEFT OUTER JOIN CLARITY_App.Rptg.vwRef_MDM_Location_Master         AS mdm ON mdm.EPIC_DEPARTMENT_ID = appt.DEPARTMENT_ID --3/26/2019 -Tom B Uncomment, use to get LOC_ID and REV_LOC_NAME
+    LEFT OUTER JOIN CLARITY_App.Rptg.vwRef_MDM_Location_Master         AS mdm ON mdm.EPIC_DEPARTMENT_ID = appt.DEPARTMENT_ID --03/26/2019 -Tom B Uncomment, use to get LOC_ID and REV_LOC_NAME
 
-    --LEFT OUTER JOIN CLARITY_App.Rptg.vwRef_MDM_Location_Master_EpicSvc AS mdm ON mdm.epic_department_id = appt.DEPARTMENT_ID --3/26/2019 -Tom B Comment out
+    --LEFT OUTER JOIN CLARITY_App.Rptg.vwRef_MDM_Location_Master_EpicSvc AS mdm ON mdm.epic_department_id = appt.DEPARTMENT_ID --03/26/2019 -Tom B Comment out
 	
     LEFT OUTER JOIN CLARITY.dbo.CLARITY_EPP                            AS epp ON epp.BENEFIT_PLAN_ID = cvg.PLAN_ID
 
@@ -585,8 +558,8 @@ FROM                CLARITY_App.dbo.Dim_Date                           AS dmdt
 	LEFT OUTER JOIN CLARITY.dbo.CLARITY_EMP								AS harvrxuser	ON appt.APPT_ENTRY_USER_ID=harvrxuser.USER_ID
 
 	LEFT OUTER JOIN CLARITY.dbo.ZC_GUAR_VERIF_STAT						AS vrxsts		ON harvrf.VERIF_STATUS_C=vrxsts.GUAR_VERIF_STAT_C
-
-    LEFT OUTER JOIN dbo.Dim_Physcn                                      AS dp ON isi.IDENTITY_ID = dp.IDNumber --4/2/2019 -Tom B Used to extract sk_Dim_Physcn value
+					   
+	LEFT OUTER JOIN dbo.Dim_Physcn                                      AS dp ON isi.IDENTITY_ID = dp.IDNumber -- 4/2/2019 -Tom B Used to extract sk_Dim_Physcn value
                                                                               AND dp.current_flag = 1
 
 ------
@@ -613,9 +586,7 @@ FROM                CLARITY_App.dbo.Dim_Date                           AS dmdt
 
 	LEFT OUTER JOIN -- 03/26/2019 -Tom B Add to extract standard columns from vwRef_Crosswalk_HSEntity_Prov
 	                (
-					    SELECT				--sk_Dim_Physcn --4/2/2019 -Tom B Comment out
-						                   --,dim_Physcn_PROV_ID -04/2/2019 -Tom B Comment out
-										    PROV_ID --4/2/2019 -Tom B Utilize PROV_ID value added to view
+					    SELECT				PROV_ID --4/2/2019 -Tom B Utilize PROV_ID value added to view
 						                   ,SOMSeq
 										   ,Clrt_Financial_Division
 										   ,Clrt_Financial_Division_Name
@@ -630,11 +601,8 @@ FROM                CLARITY_App.dbo.Dim_Date                           AS dmdt
 										   ,SOM_Division_ID
 										   ,SOM_Division_Name
 					    FROM                (
-                                                SELECT
-													--hse.sk_Dim_Physcn, --4/2/2019 -Tom B Comment out
-													--hse.dim_Physcn_PROV_ID, --4/2/2019 -Tom B Comment out
+												SELECT
 													hse.PROV_ID, --4/2/2019 -Tom B Utilize PROV_ID value added to view
-													--ROW_NUMBER() OVER (PARTITION BY hse.sk_Dim_Physcn ORDER BY hse.cw_Legacy_src_system) AS [SOMSeq], --4/2/2019 -Tom B Comment out
 													ROW_NUMBER() OVER (PARTITION BY hse.PROV_ID ORDER BY hse.cw_Legacy_src_system) AS [SOMSeq], --4/2/2019 -Tom B Use PROV_ID to partition
              										Clrt_Financial_Division = CASE WHEN ISNUMERIC(hse.Clrt_Financial_Division) = 0 THEN CAST(NULL AS INT) ELSE CAST(hse.Clrt_Financial_Division AS INT) END,
 			    									Clrt_Financial_Division_Name = CASE WHEN hse.Clrt_Financial_Division_Name = 'na' THEN CAST(NULL AS VARCHAR(150)) ELSE CAST (hse.Clrt_Financial_Division AS VARCHAR(150)) END,
@@ -659,7 +627,6 @@ FROM                CLARITY_App.dbo.Dim_Date                           AS dmdt
 												WHERE ISNULL(hse.wd_Is_Primary_Job,1) = 1
 
 											) wd
-					--) AS uwd ON uwd.sk_Dim_Physcn = dp.sk_Dim_Physcn --4/2/2019 -Tom B Comment out
 					) AS uwd ON uwd.PROV_ID = appt.VISIT_PROV_ID --4/2/2019 -Tom B Join to encounter provider id
 					  	     AND uwd.SOMSeq = 1
 
@@ -780,6 +747,7 @@ WHERE [EncSeq] > 1
 SELECT *
 FROM #HAR3
 ORDER BY sk_Dim_Physcn, PAT_ENC_CSN_ID
+
 GO
 
 

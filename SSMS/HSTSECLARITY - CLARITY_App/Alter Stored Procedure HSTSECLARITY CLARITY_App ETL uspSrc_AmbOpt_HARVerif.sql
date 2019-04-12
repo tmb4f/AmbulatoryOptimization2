@@ -91,6 +91,7 @@ AS
 --         04/02/2019 - Tom     -- edited logic to join encounter to Rptg.vwRef_Crosswalk_HSEntity_Prov using PROV_ID
 --         04/04/2019 - TMB     -- added columns CANCEL_INITIATOR, CANCEL_LEAD_HOURS, Cancel_Lead_Days,
 --                                  appt_event_Canceled, appt_event_Canceled_Late, appt_event_Provider_Canceled
+--         04/09/2019 - TMB     -- add columns STAFF_RESOURCE_C, STAFF_RESOURCE, PROVIDER_TYPE_C, PROV_TYPE, BUSINESS_UNIT
 --************************************************************************************************************************
 
 SET NOCOUNT ON;
@@ -262,19 +263,25 @@ SELECT DISTINCT
 				   ,CAST(uwd.SOM_Division_ID AS INT)																		 AS som_division_id
 				   ,CAST(uwd.SOM_Division_Name AS VARCHAR(150))                                                              AS som_division_name
 
-				   ,CAST(appt.CANCEL_INITIATOR AS VARCHAR(55))                                                               AS CANCEL_INITIATOR -- VARCHAR(55)
-				   ,CAST(appt.CANCEL_LEAD_HOURS AS INTEGER)                                                                  AS CANCEL_LEAD_HOURS -- INTEGER
-				   ,appt.Cancel_Lead_Days -- INTEGER
+				   ,CAST(appt.CANCEL_INITIATOR AS VARCHAR(55))                                                               AS CANCEL_INITIATOR
+				   ,CAST(appt.CANCEL_LEAD_HOURS AS INTEGER)                                                                  AS CANCEL_LEAD_HOURS
+				   ,appt.Cancel_Lead_Days
 				   ,CASE WHEN appt.APPT_STATUS_C = 3 AND appt.CANCEL_INITIATOR = 'PATIENT' AND appt.CANCEL_LEAD_HOURS < 24.0 THEN 0
 				         WHEN appt.APPT_STATUS_C = 3 THEN 1
 						 ELSE 0
-					END AS appt_event_Canceled -- INTEGER
+					END AS appt_event_Canceled
 				   ,CASE WHEN appt.APPT_STATUS_C = 3 AND appt.CANCEL_INITIATOR = 'PATIENT' AND appt.CANCEL_LEAD_HOURS < 24.0 THEN 1
 						 ELSE 0
-					END AS appt_event_Canceled_Late -- INTEGER
+					END AS appt_event_Canceled_Late
 				   ,CASE WHEN appt.APPT_STATUS_C = 3 AND appt.CANCEL_INITIATOR = 'PROVIDER' THEN 1
 						 ELSE 0
-					END AS appt_event_Provider_Canceled -- INTEGER
+					END AS appt_event_Provider_Canceled
+					
+	               ,ser.STAFF_RESOURCE_C -- INTEGER
+	               ,ser.STAFF_RESOURCE -- VARCHAR(20)
+	               ,ser.PROVIDER_TYPE_C -- VARCHAR(66)
+	               ,ser.PROV_TYPE -- VARCHAR(66)
+				   ,mdm.BUSINESS_UNIT -- VARCHAR(20)
 
 FROM                CLARITY_App.dbo.Dim_Date                           AS dmdt
     LEFT OUTER JOIN
