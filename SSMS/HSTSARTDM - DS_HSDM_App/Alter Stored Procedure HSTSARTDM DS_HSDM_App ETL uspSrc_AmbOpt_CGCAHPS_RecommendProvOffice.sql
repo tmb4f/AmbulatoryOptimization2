@@ -7,21 +7,12 @@ GO
 SET QUOTED_IDENTIFIER ON
 GO
 
-DECLARE @startdate SMALLDATETIME
-       ,@enddate SMALLDATETIME
-
---SET @startdate = NULL
---SET @enddate = NULL
-
-SET @startdate = '2/1/2019 00:00'
-SET @enddate = '2/28/2019 23:59'
-
---ALTER PROCEDURE [ETL].[uspSrc_AmbOpt_CGCAHPS_RecommendProvOffice]
---    (
---     @startdate SMALLDATETIME=NULL
---    ,@enddate SMALLDATETIME=NULL
---    )
---AS 
+ALTER PROCEDURE [ETL].[uspSrc_AmbOpt_CGCAHPS_RecommendProvOffice]
+    (
+     @startdate SMALLDATETIME=NULL
+    ,@enddate SMALLDATETIME=NULL
+    )
+AS 
 
 /**********************************************************************************************************************
 WHAT: Ambulatory Optimization Reporting:  CGCAHPS Recommend Provider Office
@@ -55,7 +46,7 @@ MODS:
 	  05/17/2018 - TMB - use sk_Phys_Atn value in vwFact_Pt_Acct to identify attending provider; add logic to handle 0's in
 	                     sk_Phys_Atn values
 	  07/16/2018 - TMB - exclude departments
-      04/08/2019 - TMB - add BUSINESS_UNIT, Prov_Typ, Staff_Resource, and the new standard portal columns
+      04/08/2019 - TMB - add BUSINESS_UNIT, Prov_Typ, Staff_Resource, and the new standard portal columns 
 **************************************************************************************************************************************************************/
    
     SET NOCOUNT ON; 
@@ -71,8 +62,6 @@ DECLARE @locstartdate SMALLDATETIME,
 SET @locstartdate = @startdate
 SET @locenddate   = @enddate
 
-if OBJECT_ID('tempdb..#RptgTemp') is not NULL
-DROP TABLE #RptgTemp 
 
     SELECT DISTINCT
             CAST('Outpatient-CGCAHPS' AS VARCHAR(50)) AS event_type
@@ -140,7 +129,6 @@ DROP TABLE #RptgTemp
 		   ,pm.som_department_name
 		   ,pm.som_division_id
 		   ,pm.som_division_name
-	INTO #RptgTemp
     FROM    DS_HSDW_Prod.Rptg.vwDim_Date AS rec
     LEFT OUTER JOIN
 	(
@@ -324,15 +312,7 @@ ON rec.day_date=pm.RECDATE
     WHERE   rec.day_date>=@locstartdate
             AND rec.day_date<@locenddate
 
-    --ORDER BY rec.day_date;
-
-	SELECT *
-	FROM #RptgTemp
-
-    --ORDER BY event_date;
-    --ORDER BY provider_name
-	   --    , event_date;
-    ORDER BY sk_Dim_Physcn;
+    ORDER BY rec.day_date;
 
 GO
 
