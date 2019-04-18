@@ -15,7 +15,11 @@ DECLARE @StartDate SMALLDATETIME,
 	    @in_pods VARCHAR(MAX),
 	    @in_podid VARCHAR(MAX),
 	    @in_hubs VARCHAR(MAX),
-	    @in_hubid VARCHAR(MAX)
+	    @in_hubid VARCHAR(MAX),
+	    @in_somdeps VARCHAR(MAX),
+	    @in_somdepid VARCHAR(MAX),
+	    @in_somdivs VARCHAR(MAX),
+	    @in_somdivid VARCHAR(MAX)
 
 SET @StartDate = '2/1/2019 00:00 AM'
 SET @EndDate = '2/28/2019 11:59 PM'
@@ -42,8 +46,8 @@ VALUES
 --(9),--Surgical Subspecialties
 --(10),--Transplant
 --(11) --Womens and Childrens
---(0)  --(All)
-(1) --Digestive Health
+(0)  --(All)
+--(1) --Digestive Health
 --(1),--Digestive Health
 --(2) --Heart and Vascular
 
@@ -254,6 +258,174 @@ FROM @Hub
 
 --SELECT @in_hubid
 
+DECLARE @SOMDepartment TABLE (SOMDepartmentId VARCHAR(100))
+
+INSERT INTO @SOMDepartment
+(
+    SOMDepartmentId
+)
+VALUES
+--('0'),--(All)
+('57')--,--MD-INMD Internal Medicine
+--('98'),--MD-NERS Neurological Surgery
+--('139'),--MD-OBGY Ob & Gyn
+--('163'),--MD-ORTP Orthopaedic Surgery
+--('194'),--MD-OTLY Otolaryngology
+--('29'),--MD-PBHS Public Health Sciences
+--('214'),--MD-PEDT Pediatrics
+--('261'),--MD-PSCH Psychiatric Medicine
+--('267'),--MD-RADL Radiology
+--('292'),--MD-SURG Surgery
+--('305'),--MD-UROL Urology
+;
+
+SELECT @in_somdeps = COALESCE(@in_somdeps+',' ,'') + CAST(SOMDepartmentId AS VARCHAR(MAX))
+FROM @SOMDepartment
+
+--SELECT @in_somdeps
+
+SELECT @in_somdepid = COALESCE(@in_somdepid+',' ,'') + CAST(SOMDepartmentId AS VARCHAR(MAX))
+FROM @SOMDepartment
+
+--SELECT @in_somdepid
+
+DECLARE @SOMDivision TABLE (SOMDivisionId VARCHAR(100))
+
+INSERT INTO @SOMDivision
+(
+    SOMDivisionId
+)
+VALUES
+('0')--,--(All)
+--('60'),--MD-INMD Allergy
+--('66'),--MD-INMD CV Medicine
+--('68'),--MD-INMD Endocrinology
+--('72'),--MD-INMD Gastroenterology
+--('80'),--MD-INMD Hem/Onc
+--('76'),--MD-INMD Hospital Medicine
+--('84'),--MD-INMD Infectious Dis
+--('86'),--MD-INMD Nephrology
+--('88'),--MD-INMD Pulmonary
+--('90'),--MD-INMD Rheumatology
+--('99'),--MD-NERS Admin
+--('109'),--MD-NERS CV Disease
+--('111'),--MD-NERS Deg Spinal Dis
+--('113'),--MD-NERS Gamma Knife
+--('119'),--MD-NERS Multiple Neuralgia
+--('121'),--MD-NERS Neuro-Onc
+--('127'),--MD-NERS Pediatric Pituitary
+--('129'),--MD-NERS Radiosurgery
+--('142'),--MD-OBGY Gyn Oncology
+--('154'),--MD-OBGY Gyn Specialties
+--('144'),--MD-OBGY Maternal Fetal Med
+--('148'),--MD-OBGY Midlife Health
+--('150'),--MD-OBGY Northridge
+--('140'),--MD-OBGY Ob & Gyn, Admin
+--('146'),--MD-OBGY Reprod Endo/Infertility
+--('166'),--MD-ORTP Adult Reconst
+--('176'),--MD-ORTP Foot/Ankle
+--('190'),--MD-ORTP Hand Surgery
+--('164'),--MD-ORTP Ortho Surg, Admin
+--('182'),--MD-ORTP Pediatric Ortho
+--('186'),--MD-ORTP Spine
+--('188'),--MD-ORTP Sports Med
+--('192'),--MD-ORTP Trauma
+--('195'),--MD-OTLY Oto, Admin
+--('30'),--MD-PBHS Public Health Sciences Admin
+--('235'),--MD-PEDT Adolescent Medicine
+--('221'),--MD-PEDT Cardiology
+--('223'),--MD-PEDT Critical Care
+--('225'),--MD-PEDT Developmental
+--('227'),--MD-PEDT Endocrinology
+--('237'),--MD-PEDT Gastroenterology
+--('239'),--MD-PEDT General Pediatrics
+--('241'),--MD-PEDT Genetics
+--('243'),--MD-PEDT Hematology
+--('247'),--MD-PEDT Infectious Diseases
+--('249'),--MD-PEDT Neonatology
+--('251'),--MD-PEDT Nephrology
+--('217'),--MD-PEDT Pediatrics, Admin
+--('255'),--MD-PEDT Pulmonary
+--('262'),--MD-PSCH Psychiatry and NB Sciences
+--('272'),--MD-RADL Angio/Interv
+--('276'),--MD-RADL Breast Imaging
+--('282'),--MD-RADL Neuroradiology
+--('274'),--MD-RADL Non-Invasive Cardio
+--('284'),--MD-RADL Nuclear Medicine
+--('268'),--MD-RADL Radiology, Admin
+--('278'),--MD-RADL Thoracoabdominal
+--('293'),--MD-SURG Surgery, Admin
+--('310'),--MD-UROL Urology, General
+;
+
+SELECT @in_somdivs = COALESCE(@in_somdivs+',' ,'') + CAST(SOMDivisionId AS VARCHAR(MAX))
+FROM @SOMDivision
+
+--SELECT @in_somdivs
+
+SELECT @in_somdivid = COALESCE(@in_somdivid+',' ,'') + CAST(SOMDivisionId AS VARCHAR(MAX))
+FROM @SOMDivision
+
+--SELECT @in_somdivid
+/*
+/*SOMDepartment*/
+SELECT     '0' AS som_department_id, '(All)' AS som_department_name 
+UNION	  
+SELECT DISTINCT w_som_department_id AS som_department_id, w_som_department_name AS som_department_name FROM [DS_HSDM_App].[TabRptg].[Dash_AmbOpt_ScheduledAppointmentMetric_Tiles] WHERE w_som_department_id IS NOT NULL AND w_som_department_name IS NOT NULL order BY som_department_name
+/*SOMDepartmentID*/
+DECLARE @tab_somdeps TABLE
+(
+    som_department_id VARCHAR(MAX)
+);
+INSERT INTO @tab_somdeps
+SELECT Param
+FROM ETL.fn_ParmParse(@in_somdeps, ',');
+SELECT DISTINCT w_som_department_id AS som_department_id, w_som_department_name AS som_department_name FROM [DS_HSDM_App].[TabRptg].[Dash_AmbOpt_ScheduledAppointmentMetric_Tiles] 
+where (w_som_department_id IS NOT NULL)
+      AND
+	  (w_som_department_name IS NOT NULL)
+	  AND
+      (
+          '0' IN
+          (
+              SELECT som_department_id FROM @tab_somdeps
+          )
+          OR som_department_id IN
+             (
+                 SELECT som_department_id FROM @tab_somdeps
+             )
+      )
+order by w_som_department_name;
+
+/*SOMDivision*/
+SELECT     '0' AS som_division_id, '(All)' AS som_division_name 
+UNION	  
+SELECT DISTINCT w_som_division_id AS som_division_id, w_som_division_name AS som_division_name FROM [DS_HSDM_App].[TabRptg].[Dash_AmbOpt_ScheduledAppointmentMetric_Tiles] WHERE w_som_division_id IS NOT NULL AND w_som_division_name IS NOT NULL order BY som_division_name
+/*SOMDivisionID*/
+DECLARE @tab_somdivs TABLE
+(
+    som_division_id VARCHAR(MAX)
+);
+INSERT INTO @tab_somdivs
+SELECT Param
+FROM ETL.fn_ParmParse(@in_somdivs, ',');
+SELECT DISTINCT w_som_division_id AS som_division_id, w_som_division_name AS som_division_name FROM [DS_HSDM_App].[TabRptg].[Dash_AmbOpt_ScheduledAppointmentMetric_Tiles] 
+where (w_som_division_id IS NOT NULL)
+      AND
+	  (w_som_division_name IS NOT NULL)
+	  AND
+      (
+          '0' IN
+          (
+              SELECT som_division_id FROM @tab_somdivs
+          )
+          OR som_division_id IN
+             (
+                 SELECT som_division_id FROM @tab_somdivs
+             )
+      )
+order by w_som_division_name;
+*/
 -- =========================================================
 -- Author:		Tom Burgan
 -- Create date: 03/25/2019
@@ -264,6 +436,7 @@ FROM @Hub
 --         03/25/2019 - Tom		-- create stored procedure
 --         03/27/2019 - Tom     -- use w_service_line_id, w_opnl_service_id for service line parameter
 --         04/05/2019 - TMB     -- add APPT_MADE_DTTM, BUSINESS_UNIT, Prov_Typ, and new wrapper columns to extract
+--         04/18/2019 - TMB     -- add logic for SOM Department and SOM Division report parameters
 --************************************************************************************************************************
 --ALTER PROCEDURE [Rptg].[uspSrc_AmbOpt_NoShowRate_SSRS_Download]
 --    @StartDate SMALLDATETIME,
@@ -274,7 +447,11 @@ FROM @Hub
 --	@in_pods VARCHAR(MAX),
 --	@in_podid VARCHAR(MAX),
 --	@in_hubs VARCHAR(MAX),
---	@in_hubid VARCHAR(MAX)
+--	@in_hubid VARCHAR(MAX),
+--    @in_somdeps VARCHAR(MAX),
+--	@in_somdepid VARCHAR(MAX),
+--	@in_somdivs VARCHAR(MAX),
+--	@in_somdivid VARCHAR(MAX)
 --AS
 DECLARE @tab_servLine TABLE
 (
@@ -325,6 +502,40 @@ DECLARE @tab_depid TABLE
 INSERT INTO @tab_depid
 SELECT Param
 FROM ETL.fn_ParmParse(@in_depid, ',');
+DECLARE @tab_somdeps TABLE
+(
+    som_department_id VARCHAR(MAX)
+);
+INSERT INTO @tab_somdeps
+(
+    som_department_id
+)
+SELECT Param
+FROM ETL.fn_ParmParse(@in_somdeps, ',');
+DECLARE @tab_somdepid TABLE
+(
+    som_department_id VARCHAR(MAX)
+);
+INSERT INTO @tab_somdepid
+SELECT Param
+FROM ETL.fn_ParmParse(@in_somdepid, ',');
+DECLARE @tab_somdivs TABLE
+(
+    som_division_id VARCHAR(MAX)
+);
+INSERT INTO @tab_somdivs
+(
+    som_division_id
+)
+SELECT Param
+FROM ETL.fn_ParmParse(@in_somdivs, ',');
+DECLARE @tab_somdivid TABLE
+(
+    som_division_id VARCHAR(MAX)
+);
+INSERT INTO @tab_somdivid
+SELECT Param
+FROM ETL.fn_ParmParse(@in_somdivid, ',');
 SELECT
        event_date,
        event_type, -- 'Appointment'
@@ -379,7 +590,6 @@ SELECT
 	   w_financial_sub_division_name,
 	   w_som_division_id,
 	   w_som_division_name
-
 FROM [DS_HSDM_App].[TabRptg].[Dash_AmbOpt_ScheduledAppointmentMetric_Tiles] tabrptg
 LEFT OUTER JOIN DS_HSDW_Prod.Rptg.vwFact_Pt_Enc_Clrt enc
 ON enc.sk_Fact_Pt_Enc_Clrt = tabrptg.sk_Fact_Pt_Enc_Clrt
@@ -465,6 +675,50 @@ WHERE 1 = 1
           OR COALESCE(w_service_line_id, w_opnl_service_id) IN
              (
                  SELECT Service_Line_Id FROM @tab_servLine
+             )
+      )
+      AND
+      (
+          0 IN
+          (
+              SELECT som_department_id FROM @tab_somdeps
+          )
+          OR som_department_id IN
+             (
+                 SELECT som_department_id FROM @tab_somdeps
+             )
+      )
+      AND
+      (
+          0 IN
+          (
+              SELECT som_department_id FROM @tab_somdepid
+          )
+          OR som_department_id IN
+             (
+                 SELECT som_department_id FROM @tab_somdepid
+             )
+      )
+      AND
+      (
+          0 IN
+          (
+              SELECT som_division_id FROM @tab_somdivs
+          )
+          OR som_division_id IN
+             (
+                 SELECT som_division_id FROM @tab_somdivs
+             )
+      )
+      AND
+      (
+          0 IN
+          (
+              SELECT som_division_id FROM @tab_somdivid
+          )
+          OR som_division_id IN
+             (
+                 SELECT som_division_id FROM @tab_somdivid
              )
       )--;
 
