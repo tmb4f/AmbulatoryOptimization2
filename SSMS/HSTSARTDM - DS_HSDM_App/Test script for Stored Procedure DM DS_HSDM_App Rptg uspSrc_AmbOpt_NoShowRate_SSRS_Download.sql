@@ -22,6 +22,7 @@ DECLARE @StartDate SMALLDATETIME,
 	    @in_somdivid VARCHAR(MAX)
 
 SET @StartDate = '2/1/2019 00:00 AM'
+--SET @StartDate = '2/28/2019 00:00 AM'
 SET @EndDate = '2/28/2019 11:59 PM'
 --SET @StartDate = '7/1/2018 00:00 AM'
 --SET @EndDate = '2/28/2019 11:59 PM'
@@ -126,13 +127,170 @@ VALUES
  --(10243003) -- UVHE DIGESTIVE HEALTH
  --(10239003) -- UVMS NEPHROLOGY
  --(10354015) -- UVBB PEDS ONCOLOGY CL
-(0)  -- (All)
+('0')  -- (All)
+--(10210001) -- ECCC HEM ONC EAST
+--,(10210002) -- ECCC HEM ONC WEST
+--,(10210004) -- ECCC INFUSION CENTER
+--,(10210013) -- ECCC RAD ONC CLINIC
+--,(10210014) -- ECCC HEM ONC WOMENS
+--,(10210028) -- ECCC MED DHC EAST CL
+--,(10210035) -- ECCC GYN ONC WOMENS
+--,(10210036) -- ECCC CARD DEVICE CL
+--,(10210054) -- ECCC NEPHROLOGY WEST
+--,(10211003) -- F415 RHEUMATOLOGY
+--,(10211006) -- F415 ENDOCRINE
+--,(10211012) -- F415 ALLERGY OTO
+--,(10211013) -- F415 MED PITUITARY
+--,(10211021) -- F415 NEUROSURGERY
+--,(10212016) -- F500 CARDIOLOGY
+--,(10212019) -- F500 ENDOCRINOLOGY
+--,(10217002) -- JPA SLEEP LAB
+--,(10217003) -- JPA UNIV MED ASSOCS
+--,(10220001) -- LOID MEDICAL ASSOC
+--,(10222003) -- LBSC KIDNEY TRANSPLANT
+--,(10228003) -- NRDG MIDLIFE
+--,(10228006) -- NRDG ECHO LAB
+--,(10228007) -- NRDG ALLERGY
+--,(10230004) -- ORUL UNIV PHYSICIANS
+--,(10230005) -- ORUL MED NEPHROLOGY
+--,(10230009) -- ORUL MED CARD
+--,(10239003) -- UVMS NEPHROLOGY
+--,(10239007) -- UVMS RAD MAMMOGRAPHY
+--,(10239017) -- UVMS TRANSPLANT LIVER
+--,(10239018) -- UVMS TRANSPLANT LUNG
+--,(10239019) -- UVMS TRANSPLANT KIDNEY
+--,(10239020) -- UVMS SURG TRANSPLANT
+--,(10239023) -- UVMS MED GI CL NEPH
+--,(10239024) -- UVMS ID TRANSPLANT
+--,(10239026) -- UVMS ENDO TRANSPLANT
+--,(10242005) -- UVPC DERMATOLOGY
+--,(10242006) -- UVPC OB-GYN
+--,(10242007) -- UVPC NEUROLOGY
+--,(10242008) -- UVPC CARDIOLOGY
+--,(10242018) -- UVPC PULMONARY
+--,(10242019) -- UVPC PULM FUNC LAB
+--,(10242047) -- ZZZZ SURG CARDTHORACIC
+--,(10242050) -- UVPC ALLERGY PULM
+--,(10243003) -- UVHE DIGESTIVE HEALTH
+--,(10243009) -- UVHE ECG
+--,(10243013) -- UVHE ELECTROPHYSIOLOGY
+--,(10243020) -- UVHE GI MOTILITY
+--,(10243097) -- UVHE MED CARD CL
+--,(10243098) -- UVHE MED MONITORS
+--,(10243114) -- UVHE ALLERGY DHC
+--,(10244016) -- UVWC INFECTIOUS DIS
+--,(10244023) -- UVWC MED GI CL
+--,(10244024) -- UVWC ENDOCRN BARIATRIC
+--,(10244028) -- UVWC GASTRO ID
+--,(10244029) -- UVWC OBGYN ID
+--,(10246004) -- WALL MED DH FAM MED
+--,(10246005) -- WALL ENDO MED FAMILY
+--,(10250001) -- UVBR NEUROSURGERY
+--,(10256002) -- WSRS INFECTIOUS DIS
+--,(10257001) -- CPNM MADISON PRIMARY C
+--,(10257004) -- CPNM ENDOCRINE
+--,(10275003) -- CPBR ALLERGY
+--,(10277003) -- LGGH KIDNEY TRANSPLANT
+--,(10280001) -- AUBL UVA SPTY CARE
+--,(10280008) -- AUBL UVA CANC INF AUG
+--,(10295005) -- CPSE CH CANC CTR
+--,(10299001) -- CVSR NEPHROLOGY
+--,(10299002) -- CVSR ENDOCRINE
+--,(10306001) -- CVPJ UVA CANC CTR PTP
+--,(10306003) -- CVPJ UVA CANC INF PTP
+--,(10341001) -- CVPE UVA RHEU PANTOPS
+--,(10341009) -- CVPE MED NEPHROLOGY
+--,(10348003) -- ZCSC CARDIOLOGY
+--,(10348005) -- ZCSC ENDOCRINE
+--,(10348007) -- ZCSC NEPHROLOGY
+--,(10348011) -- ZCSC PULMONARY
+--,(10348039) -- ZCSC ALLERGY
+--,(10353001) -- AUPN SP CARE NEPH
+--,(10353003) -- AUPN SP CARE ENDO
+--,(10353004) -- AUPN SP CARE PULM
+--,(10353005) -- AUPN SP CARE RHEU
+--,(10354007) -- UVBB PULM FUNC TESTING
+--,(10354014) -- UVBB PEDS GASTRO CL
+--,(10354018) -- UVBB PEDS CARD CL FL 6
+--,(10354025) -- UVBB PEDS RESP MED FL6
+--,(10354035) -- UVBB MATERNAL FETAL CL
+--,(10354047) -- UVBB MED CARD CONGEN
+--,(10354052) -- UVBB PEDS GI MOT
+--,(10354074) -- UVBB PEDS RESP MED FL5
+--,(10369001) -- CPSA CARDIOLOGY
+--,(10374001) -- ROFR KIDNEY TRANSPLANT
+--,(10377001) -- PAMS PRIMARY CARE
+--,(10378001) -- WCVD KIDNEY TRANSPLANT
+--,(10379900) -- UVML ENDOBRONC PROC
+--,(10387001) -- CVSM PRIMARY CARE
+--,(10390005) -- CPBE ENDOCRINE
+--,(10399001) -- CVSN ENDOCRINE
 ;
 
 SELECT @in_deps = COALESCE(@in_deps+',' ,'') + CAST(DepartmentId AS VARCHAR(MAX))
 FROM @Department
 
 --SELECT @in_deps
+
+/*
+DECLARE @tab_deps TABLE
+(
+    epic_department_id VARCHAR(MAX)
+);
+INSERT INTO @tab_deps
+SELECT Param
+FROM ETL.fn_ParmParse(@in_deps, ',');
+
+SELECT * FROM @tab_deps;
+
+SELECT DISTINCT epic_department_id DEPARTMENT_ID, epic_department_name_external DEPARTMENT_NAME FROM [DS_HSDM_App].[TabRptg].[Dash_AmbOpt_ScheduledAppointmentMetric_Tiles] 
+WHERE (epic_department_id IS NOT NULL)
+      AND
+	  (epic_department_name_external IS NOT NULL)
+	  AND  
+      (
+          '0' IN
+          (
+              SELECT epic_department_id FROM @tab_deps
+          )
+          OR epic_department_id IN
+             (
+                 SELECT epic_department_id FROM @tab_deps
+             )
+      )
+order by DEPARTMENT_NAME
+*/
+/*
+SELECT DISTINCT epic_department_id DEPARTMENT_ID, epic_department_name_external DEPARTMENT_NAME FROM [DS_HSDM_App].[TabRptg].[Dash_AmbOpt_ScheduledAppointmentMetric_Tiles] 
+WHERE (epic_department_id IS NOT NULL)
+      AND
+	  (epic_department_name_external IS NOT NULL)
+	  AND  
+      (
+          --'0' IN (@in_deps)
+          '0' = @in_deps
+          --OR epic_department_id IN (@in_deps)
+          OR CHARINDEX(CAST(epic_department_id AS VARCHAR(18)),@in_deps) > 0
+      )
+order by DEPARTMENT_NAME
+*/
+/*
+SELECT DISTINCT
+	CASE WHEN '0' = @in_deps THEN 0 ELSE epic_department_id END AS DEPARTMENT_ID
+  , CASE WHEN '0' = @in_deps THEN '(All)' ELSE epic_department_name_external END AS DEPARTMENT_NAME
+FROM [DS_HSDM_App].[TabRptg].[Dash_AmbOpt_ScheduledAppointmentMetric_Tiles] 
+WHERE (epic_department_id IS NOT NULL)
+      AND
+	  (epic_department_name_external IS NOT NULL)
+	  AND  
+      (
+          --'0' IN (@in_deps)
+          '0' = @in_deps
+          --OR epic_department_id IN (@in_deps)
+          OR CHARINDEX(CAST(epic_department_id AS VARCHAR(18)),@in_deps) > 0
+      )
+order by DEPARTMENT_NAME
+*/
 
 SELECT @in_depid = COALESCE(@in_depid+',' ,'') + CAST(DepartmentId AS VARCHAR(MAX))
 FROM @Department
@@ -223,6 +381,31 @@ where (pod_id IS NOT NULL)
       )
 order by pod_name
 */
+/*
+DECLARE @tab_pods TABLE
+(
+    pod_id VARCHAR(MAX)
+);
+INSERT INTO @tab_pods
+SELECT Param
+FROM ETL.fn_ParmParse(@in_pods, ',');
+SELECT DISTINCT pod_id, pod_name FROM [DS_HSDM_App].[TabRptg].[Dash_AmbOpt_ScheduledAppointmentMetric_Tiles] 
+where (pod_id IS NOT NULL)
+      AND
+	  (pod_name IS NOT NULL)
+	  AND
+      (
+          '0' IN
+          (
+              SELECT pod_id FROM @tab_pods
+          )
+          OR pod_id IN
+             (
+                 SELECT pod_id FROM @tab_pods
+             )
+      )
+order by pod_name
+*/
 
 SELECT @in_podid = COALESCE(@in_podid+',' ,'') + CAST(PodId AS VARCHAR(MAX))
 FROM @Pod
@@ -252,6 +435,32 @@ SELECT @in_hubs = COALESCE(@in_hubs+',' ,'') + CAST(HubId AS VARCHAR(MAX))
 FROM @Hub
 
 --SELECT @in_hubs
+
+/*
+DECLARE @tab_hubs TABLE
+(
+    hub_id VARCHAR(MAX)
+);
+INSERT INTO @tab_hubs
+SELECT Param
+FROM ETL.fn_ParmParse(@in_hubs, ',');
+SELECT DISTINCT hub_id, hub_name FROM [DS_HSDM_App].[TabRptg].[Dash_AmbOpt_ScheduledAppointmentMetric_Tiles] 
+where (hub_id IS NOT NULL)
+      AND
+	  (hub_name IS NOT NULL)
+	  AND
+      (
+          '0' IN
+          (
+              SELECT hub_id FROM @tab_hubs
+          )
+          OR hub_id IN
+             (
+                 SELECT hub_id FROM @tab_hubs
+             )
+      )
+order by hub_name
+*/
 
 SELECT @in_hubid = COALESCE(@in_hubid+',' ,'') + CAST(HubId AS VARCHAR(MAX))
 FROM @Hub
@@ -396,12 +605,61 @@ where (w_som_department_id IS NOT NULL)
              )
       )
 order by w_som_department_name;
-
+/*
+DECLARE @tab_somdeps TABLE
+(
+    som_department_id VARCHAR(MAX)
+);
+INSERT INTO @tab_somdeps
+SELECT Param
+FROM ETL.fn_ParmParse(@in_somdeps, ',');
+SELECT DISTINCT w_som_department_id AS som_department_id, w_som_department_name AS som_department_name FROM [DS_HSDM_App].[TabRptg].[Dash_AmbOpt_ScheduledAppointmentMetric_Tiles] 
+where (w_som_department_id IS NOT NULL)
+      AND
+	  (w_som_department_name IS NOT NULL)
+	  AND
+      (
+          '0' IN
+          (
+              SELECT som_department_id FROM @tab_somdeps
+          )
+          OR som_department_id IN
+             (
+                 SELECT som_department_id FROM @tab_somdeps
+             )
+      )
+order by w_som_department_name;
+*/
 /*SOMDivision*/
 SELECT     '0' AS som_division_id, '(All)' AS som_division_name 
 UNION	  
 SELECT DISTINCT w_som_division_id AS som_division_id, w_som_division_name AS som_division_name FROM [DS_HSDM_App].[TabRptg].[Dash_AmbOpt_ScheduledAppointmentMetric_Tiles] WHERE w_som_division_id IS NOT NULL AND w_som_division_name IS NOT NULL order BY som_division_name
 /*SOMDivisionID*/
+DECLARE @tab_somdivs TABLE
+(
+    som_division_id VARCHAR(MAX)
+);
+INSERT INTO @tab_somdivs
+SELECT Param
+FROM ETL.fn_ParmParse(@in_somdivs, ',');
+SELECT DISTINCT w_som_division_id AS som_division_id, w_som_division_name AS som_division_name FROM [DS_HSDM_App].[TabRptg].[Dash_AmbOpt_ScheduledAppointmentMetric_Tiles] 
+where (w_som_division_id IS NOT NULL)
+      AND
+	  (w_som_division_name IS NOT NULL)
+	  AND
+      (
+          '0' IN
+          (
+              SELECT som_division_id FROM @tab_somdivs
+          )
+          OR som_division_id IN
+             (
+                 SELECT som_division_id FROM @tab_somdivs
+             )
+      )
+order by w_som_division_name;
+*/
+/*
 DECLARE @tab_somdivs TABLE
 (
     som_division_id VARCHAR(MAX)
@@ -722,7 +980,8 @@ WHERE 1 = 1
              )
       )--;
 
-ORDER BY [No Show] DESC
-GO
-
-
+--ORDER BY [No Show] DESC
+--ORDER BY event_date
+ORDER BY w_hub_id
+       , epic_department_name_external
+       , event_date
