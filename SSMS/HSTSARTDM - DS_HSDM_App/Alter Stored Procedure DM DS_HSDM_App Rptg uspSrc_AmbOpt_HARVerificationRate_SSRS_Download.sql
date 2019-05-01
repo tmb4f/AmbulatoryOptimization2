@@ -16,6 +16,7 @@ GO
 --MODS: 	
 --         04/12/2019 - Tom		-- create stored procedure
 --         04/16/2019 - Tom     -- edit logic for filtering by event_date
+--         05/01/2019 - TMB     -- add logic for SOM Department and SOM Division report parameters
 --************************************************************************************************************************
 ALTER PROCEDURE [Rptg].[uspSrc_AmbOpt_HARVerificationRate_SSRS_Download]
     @StartDate SMALLDATETIME,
@@ -26,7 +27,11 @@ ALTER PROCEDURE [Rptg].[uspSrc_AmbOpt_HARVerificationRate_SSRS_Download]
 	@in_pods VARCHAR(MAX),
 	@in_podid VARCHAR(MAX),
 	@in_hubs VARCHAR(MAX),
-	@in_hubid VARCHAR(MAX)
+	@in_hubid VARCHAR(MAX),
+    @in_somdeps VARCHAR(MAX),
+	@in_somdepid VARCHAR(MAX),
+	@in_somdivs VARCHAR(MAX),
+	@in_somdivid VARCHAR(MAX)
 AS
 
 SET NOCOUNT ON;
@@ -88,6 +93,40 @@ DECLARE @tab_depid TABLE
 INSERT INTO @tab_depid
 SELECT Param
 FROM ETL.fn_ParmParse(@in_depid, ',');
+DECLARE @tab_somdeps TABLE
+(
+    som_department_id VARCHAR(MAX)
+);
+INSERT INTO @tab_somdeps
+(
+    som_department_id
+)
+SELECT Param
+FROM ETL.fn_ParmParse(@in_somdeps, ',');
+DECLARE @tab_somdepid TABLE
+(
+    som_department_id VARCHAR(MAX)
+);
+INSERT INTO @tab_somdepid
+SELECT Param
+FROM ETL.fn_ParmParse(@in_somdepid, ',');
+DECLARE @tab_somdivs TABLE
+(
+    som_division_id VARCHAR(MAX)
+);
+INSERT INTO @tab_somdivs
+(
+    som_division_id
+)
+SELECT Param
+FROM ETL.fn_ParmParse(@in_somdivs, ',');
+DECLARE @tab_somdivid TABLE
+(
+    som_division_id VARCHAR(MAX)
+);
+INSERT INTO @tab_somdivid
+SELECT Param
+FROM ETL.fn_ParmParse(@in_somdivid, ',');
 
 SELECT
        event_date,
@@ -240,6 +279,50 @@ WHERE 1 = 1
           OR COALESCE(w_service_line_id, w_opnl_service_id) IN
              (
                  SELECT Service_Line_Id FROM @tab_servLine
+             )
+      )
+      AND
+      (
+          0 IN
+          (
+              SELECT som_department_id FROM @tab_somdeps
+          )
+          OR som_department_id IN
+             (
+                 SELECT som_department_id FROM @tab_somdeps
+             )
+      )
+      AND
+      (
+          0 IN
+          (
+              SELECT som_department_id FROM @tab_somdepid
+          )
+          OR som_department_id IN
+             (
+                 SELECT som_department_id FROM @tab_somdepid
+             )
+      )
+      AND
+      (
+          0 IN
+          (
+              SELECT som_division_id FROM @tab_somdivs
+          )
+          OR som_division_id IN
+             (
+                 SELECT som_division_id FROM @tab_somdivs
+             )
+      )
+      AND
+      (
+          0 IN
+          (
+              SELECT som_division_id FROM @tab_somdivid
+          )
+          OR som_division_id IN
+             (
+                 SELECT som_division_id FROM @tab_somdivid
              )
       );
 
