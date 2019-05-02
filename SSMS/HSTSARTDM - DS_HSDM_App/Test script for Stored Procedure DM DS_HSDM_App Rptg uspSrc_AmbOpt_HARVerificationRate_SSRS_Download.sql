@@ -25,8 +25,10 @@ DECLARE @StartDate SMALLDATETIME,
 --SET @StartDate = '2/28/2019 00:00 AM'
 --SET @StartDate = '7/1/2018 00:00 AM'
 --SET @EndDate = '2/28/2019 11:59 PM'
-SET @StartDate = '3/30/2019 00:00 AM'
-SET @EndDate = '4/28/2019 11:59 PM'
+--SET @StartDate = '4/2/2019 00:00 AM'
+--SET @EndDate = '5/1/2019 11:59 PM'
+SET @StartDate = '4/2/2019 00:00 AM'
+SET @EndDate = '5/1/2019 00:00 AM'
 
 SET NOCOUNT ON
 
@@ -748,6 +750,7 @@ WHERE 1 = 1
       )--;
 
 ORDER BY [HAR Verification] DESC
+       , event_date
 
 GO
 
