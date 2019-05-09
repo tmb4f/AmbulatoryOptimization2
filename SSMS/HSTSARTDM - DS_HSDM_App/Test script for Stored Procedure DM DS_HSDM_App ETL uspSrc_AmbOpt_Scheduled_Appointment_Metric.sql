@@ -95,7 +95,8 @@ SET @enddate = '2/9/2019 11:59 PM'
 --         03/28/2019 - BDD     ---cast various columns as proper data type for portal tables removed w_ from new column names to match other portal processes.
 --         04/05/2019 - TMB - correct statement setting value of Clrt_Financial_Division_Name
 --         05/07/2019 - TMB - add logic for updated/new views Rptg.vwRef_Crosswalk_HSEntity_Prov and Rptg.vwRef_SOM_Hierarchy
---         05/09/2019 - TMB - edit logic to resolve issue resulting from multiple primary, active wd jobs for a provider
+--         05/09/2019 - TMB - edit logic to resolve issue resulting from multiple primary, active wd jobs for a provider;
+--                            add place-holder columns for som_hs_area_id (smallint) and som_hs_area_name (VARCHAR(150))
 --************************************************************************************************************************
 
     SET NOCOUNT ON;
@@ -253,7 +254,9 @@ SELECT CAST('Appointment' AS VARCHAR(50)) AS event_type,
 	   evnts.som_department_name,
 	   evnts.som_division_id,
 	   evnts.som_division_name,
-	   evnts.som_division_5
+	   evnts.som_division_5,
+	   evnts.som_hs_area_id, -- SMALLINT
+	   evnts.som_hs_area_name -- VARCHAR(50)
 
 INTO #metric
 
@@ -501,7 +504,9 @@ FROM
 			main.som_department_name,
 			main.som_division_id,
 			main.som_division_name,
-			main.som_division_5
+			main.som_division_5,
+			main.som_hs_area_id,
+			main.som_hs_area_name
 
         FROM
         ( --main
@@ -627,7 +632,10 @@ FROM
 				   CAST(uwd.SOM_department AS VARCHAR(150)) AS som_department_name,
 				   uwd.SOM_division_id AS som_division_id,
 				   CAST(uwd.SOM_division_name AS VARCHAR(150)) AS som_division_name,
-				   CAST(uwd.SOM_division_5 AS VARCHAR(150)) AS som_division_5
+				   CAST(uwd.SOM_division_5 AS VARCHAR(150)) AS som_division_5,
+
+				   CAST(NULL AS SMALLINT) AS som_hs_area_id,
+				   CAST(NULL AS VARCHAR(150)) AS som_hs_area_name
 
             FROM Stage.Scheduled_Appointment AS appts
                 LEFT OUTER JOIN DS_HSDW_Prod.Rptg.vwDim_Clrt_SERsrc ser
