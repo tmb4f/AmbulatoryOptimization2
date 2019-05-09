@@ -46,7 +46,8 @@ MODS:
 	  05/17/2018 - TMB - use sk_Phys_Atn value in vwFact_Pt_Acct to identify attending provider; add logic to handle 0's in
 	                     sk_Phys_Atn values
 	  07/16/2018 - TMB - exclude departments
-      04/08/2019 - TMB - add BUSINESS_UNIT, Prov_Typ, Staff_Resource, and the new standard portal columns 
+      04/08/2019 - TMB - add BUSINESS_UNIT, Prov_Typ, Staff_Resource, and the new standard portal columns
+      05/08/2019 - TMB - add logic for updated/new views Rptg.vwRef_Crosswalk_HSEntity_Prov and Rptg.vwRef_SOM_Hierarchy
 **************************************************************************************************************************************************************/
    
     SET NOCOUNT ON; 
@@ -100,7 +101,7 @@ SET @locenddate   = @enddate
 		   ,pm.sk_Dim_Pt
            ,pm.sk_Fact_Pt_Acct
            ,CAST(NULL AS INTEGER) AS sk_Fact_Pt_Enc_Clrt
-           ,pm.pod_id
+           ,CAST(pm.pod_id AS VARCHAR(66)) AS pod_id
 		   ,pm.pod_name
            ,pm.hub_id
 		   ,pm.hub_name
@@ -114,9 +115,9 @@ SET @locenddate   = @enddate
                  ELSE 0
             END AS transplant
 		   ,pm.sk_Dim_Physcn
-		   ,pm.BUSINESS_UNIT -- VARCHAR(20)
-		   ,pm.Prov_Typ -- VARCHAR(66)
-		   ,pm.Staff_Resource -- VARCHAR(20)
+		   ,pm.BUSINESS_UNIT
+		   ,pm.Prov_Typ
+		   ,pm.Staff_Resource
 		   ,pm.som_group_id
 		   ,pm.som_group_name
 		   ,pm.rev_location_id
@@ -129,6 +130,7 @@ SET @locenddate   = @enddate
 		   ,pm.som_department_name
 		   ,pm.som_division_id
 		   ,pm.som_division_name
+		   ,pm.som_division_5 -- VARCHAR(150)
     FROM    DS_HSDW_Prod.Rptg.vwDim_Date AS rec
     LEFT OUTER JOIN
 	(
@@ -175,18 +177,19 @@ SET @locenddate   = @enddate
 				,loc_master.BUSINESS_UNIT
 				,prov.Prov_Typ
 				,prov.Staff_Resource
-				,NULL AS som_group_id
-				,NULL AS som_group_name
 				,loc_master.LOC_ID AS rev_location_id
 				,loc_master.REV_LOC_NAME AS rev_location
-				,uwd.Clrt_Financial_Division AS financial_division_id
-				,uwd.Clrt_Financial_Division_Name AS financial_division_name
-				,uwd.Clrt_Financial_SubDivision AS financial_sub_division_id
-				,uwd.Clrt_Financial_SubDivision_Name financial_sub_division_name
-				,CAST(uwd.SOM_Department_ID AS INT) AS som_department_id
-				,CAST(uwd.SOM_Department AS VARCHAR(150)) AS som_department_name
-				,CAST(uwd.SOM_Division_ID AS INT) AS som_division_id
-				,CAST(uwd.SOM_Division_Name AS VARCHAR(150)) AS som_division_name
+         		,CASE WHEN ISNUMERIC(cwlk.Clrt_Financial_Division) = 0 THEN CAST(NULL AS INT) ELSE CAST(cwlk.Clrt_Financial_Division AS INT) END AS financial_division_id
+				,CAST(cwlk.Clrt_Financial_Division_Name AS VARCHAR(150)) AS financial_division_name
+				,CASE WHEN ISNUMERIC(cwlk.Clrt_Financial_SubDivision) = 0 THEN CAST(NULL AS INT) ELSE CAST(cwlk.Clrt_Financial_SubDivision AS INT) END AS financial_sub_division_id
+				,CAST(cwlk.Clrt_Financial_SubDivision_Name AS VARCHAR(150)) AS financial_sub_division_name
+				,som.SOM_Group_ID AS som_group_id
+				,CAST(som.SOM_group AS VARCHAR(150)) AS som_group_name
+				,som.SOM_department_id AS som_department_id
+				,CAST(som.SOM_department AS VARCHAR(150)) AS som_department_name
+				,som.SOM_division_id AS som_division_id
+				,CAST(som.SOM_division_name AS VARCHAR(150)) AS som_division_name
+				,CAST(som.SOM_division_5 AS VARCHAR(150)) AS som_division_5
 		FROM    DS_HSDW_Prod.Rptg.vwFact_PressGaney_Responses AS resp
 		INNER JOIN DS_HSDW_Prod.Rptg.vwDim_PG_Question AS qstn
 				ON resp.sk_Dim_PG_Question=qstn.sk_Dim_PG_Question
@@ -232,53 +235,15 @@ SET @locenddate   = @enddate
                 ON dep.DEPARTMENT_ID = loc_master.EPIC_DEPARTMENT_ID
 		LEFT OUTER JOIN Stage.AmbOpt_Excluded_Department excl
 		        ON excl.DEPARTMENT_ID = dep.DEPARTMENT_ID
-        LEFT OUTER JOIN
-	    (
-			SELECT DISTINCT
-				   sk_Dim_Physcn,
-				   dim_Physcn_PROV_ID,
-				   SOMSeq,
-				   Clrt_Financial_Division,
-				   Clrt_Financial_Division_Name,
-				   Clrt_Financial_SubDivision,
-				   Clrt_Financial_SubDivision_Name,
-				   wd_Dept_Code,
-				   wd_Department_Name,
-				   wd.Som_Department_ID,
-				   wd.SOM_Department,
-				   wd.SOM_Division_ID,
-				   wd.SOM_Division_Name
-			FROM
-			(
-				SELECT hse.sk_Dim_Physcn,
-					   hse.dim_Physcn_PROV_ID,
-					   ROW_NUMBER() OVER (PARTITION BY hse.sk_Dim_Physcn ORDER BY hse.cw_Legacy_src_system) AS [SOMSeq],
-             		   Clrt_Financial_Division = CASE WHEN ISNUMERIC(hse.Clrt_Financial_Division) = 0 THEN CAST(NULL AS INT) ELSE CAST(hse.Clrt_Financial_Division AS INT) END,
-			    	   Clrt_Financial_Division_Name = CASE WHEN hse.Clrt_Financial_Division_Name = 'na' THEN CAST(NULL AS VARCHAR(150)) ELSE CAST (hse.Clrt_Financial_Division_Name AS VARCHAR(150)) END,
-					   Clrt_Financial_SubDivision = CASE WHEN ISNUMERIC(hse.Clrt_Financial_SubDivision) = 0 THEN CAST(NULL AS INT) ELSE CAST(hse.Clrt_Financial_SubDivision AS INT) END, 
-					   Clrt_Financial_SubDivision_Name = CASE WHEN hse.Clrt_Financial_SubDivision_Name = 'na' THEN CAST(NULL AS VARCHAR(150)) ELSE CAST(hse.Clrt_Financial_SubDivision_Name AS VARCHAR(150)) END,
-					   hse.SOM_DEPT_ID,
-				       hse.wd_Dept_Code,
-					   hse.wd_Department_Name,
-					   som.SOM_Department_ID,
-					   som.SOM_Department,
-					   som.SOM_Division_ID,
-					   som.SOM_Division_Name
-				FROM Rptg.vwRef_Crosswalk_HSEntity_Prov AS hse
-			    LEFT OUTER JOIN
-				(
-				    SELECT DISTINCT
-					       SOM_Department_ID,
-						   SOM_Department,
-						   SOM_Division_ID,
-						   SOM_Division_Name
-					FROM Rptg.vwRef_SOM_Hierarchy
-				) AS som
-						ON hse.wd_department_name = som.SOM_Division_Name
-			    WHERE ISNULL(wd_Is_Primary_Job,1) = 1
-			) wd
-		) AS uwd ON uwd.sk_Dim_Physcn = dp.sk_Dim_Physcn
-				    AND uwd.SOMSeq = 1
+                -- -------------------------------------
+                -- SOM Hierarchy--
+                -- -------------------------------------
+        LEFT OUTER JOIN Rptg.vwRef_Crosswalk_HSEntity_Prov AS cwlk
+		        ON cwlk.sk_Dim_Physcn = dp.sk_Dim_Physcn
+                   AND cwlk.wd_Is_Primary_Job = 1
+                   AND cwlk.wd_Is_Position_Active = 1
+        LEFT OUTER JOIN Rptg.vwRef_SOM_Hierarchy AS som
+			    ON cwlk.wd_Dept_Code=som.SOM_division_5
 		WHERE   resp.Svc_Cde='MD' AND resp.sk_Dim_PG_Question IN ('805') -- Would you recommend this provider's office to your family and friends?
 				AND resp.RECDATE>=@locstartdate
 				AND resp.RECDATE<@locenddate

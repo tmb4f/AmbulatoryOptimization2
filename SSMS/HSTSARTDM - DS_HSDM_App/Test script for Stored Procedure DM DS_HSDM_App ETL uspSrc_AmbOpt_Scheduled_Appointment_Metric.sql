@@ -94,6 +94,8 @@ SET @enddate = '2/9/2019 11:59 PM'
 --
 --         03/28/2019 - BDD     ---cast various columns as proper data type for portal tables removed w_ from new column names to match other portal processes.
 --         04/05/2019 - TMB - correct statement setting value of Clrt_Financial_Division_Name
+--         05/07/2019 - TMB - add logic for updated/new views Rptg.vwRef_Crosswalk_HSEntity_Prov and Rptg.vwRef_SOM_Hierarchy
+--         05/09/2019 - TMB - edit logic to resolve issue resulting from multiple primary, active wd jobs for a provider
 --************************************************************************************************************************
 
     SET NOCOUNT ON;
@@ -112,6 +114,8 @@ SET @locenddate   = @enddate
 
 IF OBJECT_ID('tempdb..#metric ') IS NOT NULL
 DROP TABLE #metric
+
+SELECT @locstartdate, @locenddate
 
 SELECT CAST('Appointment' AS VARCHAR(50)) AS event_type,
        CASE
@@ -248,7 +252,8 @@ SELECT CAST('Appointment' AS VARCHAR(50)) AS event_type,
 	   evnts.som_department_id,
 	   evnts.som_department_name,
 	   evnts.som_division_id,
-	   evnts.som_division_name
+	   evnts.som_division_name,
+	   evnts.som_division_5
 
 INTO #metric
 
@@ -495,7 +500,8 @@ FROM
 			main.som_department_id,
 			main.som_department_name,
 			main.som_division_id,
-			main.som_division_name
+			main.som_division_name,
+			main.som_division_5
 
         FROM
         ( --main
@@ -607,20 +613,21 @@ FROM
 				   ser.Prov_Typ,
 				   ser.Staff_Resource,
 
-				   NULL AS som_group_id,
-				   NULL AS som_group_name,
 				   mdmloc.LOC_ID AS rev_location_id,
 				   mdmloc.REV_LOC_NAME AS rev_location,
 
-				   uwd.Clrt_Financial_Division AS financial_division_id,
-				   uwd.Clrt_Financial_Division_Name AS financial_division_name,
-				   uwd.Clrt_Financial_SubDivision AS financial_sub_division_id,
-				   uwd.Clrt_Financial_SubDivision_Name financial_sub_division_name,
+				   CASE WHEN ISNUMERIC(uwd.Clrt_Financial_Division) = 0 THEN CAST(NULL AS INT) ELSE CAST(uwd.Clrt_Financial_Division AS INT) END AS financial_division_id,
+				   CAST(uwd.Clrt_Financial_Division_Name AS VARCHAR(150)) AS financial_division_name,
+                   CASE WHEN ISNUMERIC(uwd.Clrt_Financial_SubDivision) = 0 THEN CAST(NULL AS INT) ELSE CAST(uwd.Clrt_Financial_SubDivision AS INT) END AS financial_sub_division_id,
+				   CAST(uwd.Clrt_Financial_SubDivision_Name AS VARCHAR(150)) AS financial_sub_division_name,
 
-				   CAST(uwd.SOM_Department_ID AS INT) AS som_department_id,              ---BDD 3/29/2019 temp until ref table built 
-				   CAST(uwd.SOM_Department AS VARCHAR(150)) AS som_department_name,
-                   CAST(uwd.SOM_Division_ID AS INT) AS som_division_id,
-				   CAST(uwd.SOM_Division_Name AS VARCHAR(150)) AS som_division_name
+				   uwd.SOM_Group_ID AS som_group_id,
+				   CAST(uwd.SOM_group AS VARCHAR(150)) AS som_group_name,
+				   uwd.SOM_department_id AS som_department_id,
+				   CAST(uwd.SOM_department AS VARCHAR(150)) AS som_department_name,
+				   uwd.SOM_division_id AS som_division_id,
+				   CAST(uwd.SOM_division_name AS VARCHAR(150)) AS som_division_name,
+				   CAST(uwd.SOM_division_5 AS VARCHAR(150)) AS som_division_5
 
             FROM Stage.Scheduled_Appointment AS appts
                 LEFT OUTER JOIN DS_HSDW_Prod.Rptg.vwDim_Clrt_SERsrc ser
@@ -688,51 +695,68 @@ FROM
                 LEFT OUTER JOIN Stage.AmbOpt_Excluded_Department excl
 				    ON excl.DEPARTMENT_ID = appts.DEPARTMENT_ID
 
+                -- -------------------------------------
+                -- SOM Hierarchy--
+                -- -------------------------------------
+        --        LEFT OUTER JOIN Rptg.vwRef_Crosswalk_HSEntity_Prov AS cwlk
+				    --ON cwlk.sk_Dim_Physcn = doc.sk_Dim_Physcn
+        --               AND cwlk.wd_Is_Primary_Job = 1
+        --               AND cwlk.wd_Is_Position_Active = 1
+        --        LEFT OUTER JOIN Rptg.vwRef_SOM_Hierarchy AS som
+			     --   ON cwlk.wd_Dept_Code=som.SOM_division_5
 	            LEFT OUTER JOIN
 	            (
 					SELECT DISTINCT
-					    sk_Dim_Physcn,
-						dim_Physcn_PROV_ID,
-						SOMSeq,
-						Clrt_Financial_Division,
-						Clrt_Financial_Division_Name,
-						Clrt_Financial_SubDivision,
-						Clrt_Financial_SubDivision_Name,
-						wd_Dept_Code,
-						wd_Department_Name,
-						wd.Som_Department_ID,
-						wd.SOM_Department,
-						wd.SOM_Division_ID,
-						wd.SOM_Division_Name
+					    wd.sk_Dim_Physcn,
+						wd.PROV_ID,
+             			wd.Clrt_Financial_Division,
+			    		wd.Clrt_Financial_Division_Name,
+						wd.Clrt_Financial_SubDivision, 
+					    wd.Clrt_Financial_SubDivision_Name,
+					    wd.wd_Dept_Code,
+					    wd.SOM_Group_ID,
+					    wd.SOM_Group,
+						wd.SOM_department_id,
+					    wd.SOM_department,
+						wd.SOM_division_id,
+						wd.SOM_division_name,
+						wd.SOM_division_5
 					FROM
 					(
 					    SELECT
-						    hse.sk_Dim_Physcn,
-							hse.dim_Physcn_PROV_ID,
-							ROW_NUMBER() OVER (PARTITION BY hse.sk_Dim_Physcn ORDER BY hse.cw_Legacy_src_system) AS [SOMSeq],
-             			    Clrt_Financial_Division = CASE WHEN ISNUMERIC(hse.Clrt_Financial_Division) = 0 THEN CAST(NULL AS INT) ELSE CAST(hse.Clrt_Financial_Division AS INT) END,
-			    		    Clrt_Financial_Division_Name = CASE WHEN hse.Clrt_Financial_Division_Name = 'na' THEN CAST(NULL AS VARCHAR(150)) ELSE CAST (hse.Clrt_Financial_Division_Name AS VARCHAR(150)) END,
-						    Clrt_Financial_SubDivision = CASE WHEN ISNUMERIC(hse.Clrt_Financial_SubDivision) = 0 THEN CAST(NULL AS INT) ELSE CAST(hse.Clrt_Financial_SubDivision AS INT) END, 
-							Clrt_Financial_SubDivision_Name = CASE WHEN hse.Clrt_Financial_SubDivision_Name = 'na' THEN CAST(NULL AS VARCHAR(150)) ELSE CAST(hse.Clrt_Financial_SubDivision_Name AS VARCHAR(150)) END,
-							hse.SOM_DEPT_ID,
-							hse.wd_Dept_Code,
-							hse.wd_Department_Name,
-							som.SOM_Department_ID,
-							som.SOM_Department,
-							som.SOM_Division_ID,
-							som.SOM_Division_Name
-						FROM Rptg.vwRef_Crosswalk_HSEntity_Prov AS hse
-						   LEFT OUTER JOIN (SELECT DISTINCT SOM_Department_ID,
-						                                    SOM_Department,
-															SOM_Division_ID,
-															SOM_Division_Name
-						                       FROM Rptg.vwRef_SOM_Hierarchy
-						                   ) AS som
-						                  ON hse.wd_department_name = som.SOM_Division_Name
-					    WHERE ISNULL(wd_Is_Primary_Job,1) = 1
-					) wd
-				) AS uwd ON uwd.sk_Dim_Physcn = doc.sk_Dim_Physcn
-							AND uwd.SOMSeq = 1
+						    cwlk.sk_Dim_Physcn,
+							cwlk.PROV_ID,
+             			    cwlk.Clrt_Financial_Division,
+			    		    cwlk.Clrt_Financial_Division_Name,
+						    cwlk.Clrt_Financial_SubDivision, 
+							cwlk.Clrt_Financial_SubDivision_Name,
+							cwlk.wd_Dept_Code,
+							som.SOM_Group_ID,
+							som.SOM_Group,
+							som.SOM_department_id,
+							som.SOM_department,
+							som.SOM_division_id,
+							som.SOM_division_name,
+							som.SOM_division_5,
+							ROW_NUMBER() OVER (PARTITION BY cwlk.sk_Dim_Physcn ORDER BY som.som_group_id ASC) AS [SOMSeq]
+						FROM Rptg.vwRef_Crosswalk_HSEntity_Prov AS cwlk
+						    LEFT OUTER JOIN (SELECT DISTINCT
+							                     SOM_Group_ID,
+												 SOM_Group,
+												 SOM_department_id,
+												 SOM_department,
+												 SOM_division_id,
+												 SOM_division_name,
+												 SOM_division_5
+						                     FROM Rptg.vwRef_SOM_Hierarchy
+						                    ) AS som
+						        ON cwlk.wd_Dept_Code = som.SOM_division_5
+					    WHERE cwlk.wd_Is_Primary_Job = 1
+                              AND cwlk.wd_Is_Position_Active = 1
+					) AS wd
+					WHERE wd.SOMSeq = 1
+				) AS uwd
+				    ON uwd.sk_Dim_Physcn = doc.sk_Dim_Physcn
 
             WHERE (appts.APPT_DT >= @locstartdate
               AND appts.APPT_DT < @locenddate)
@@ -752,6 +776,7 @@ FROM #metric
 --WHERE Appointment_Lag_Days >= 0 AND appt_event_New_to_Specialty = 1 AND appt_event_Completed = 1
 --WHERE appt_event_Canceled = 0 OR appt_event_Canceled_Late = 1 OR (appt_event_Provider_Canceled = 1 AND Cancel_Lead_Days <= 45)
 --WHERE appt_event_Completed = 1
+WHERE som_group_id IS NOT NULL
 --GROUP BY APPT_STATUS_FLAG
 
 --ORDER BY Appointment_Lag_Days DESC

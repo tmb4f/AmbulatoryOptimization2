@@ -86,6 +86,7 @@ AS
 --
 --         03/28/2019 - BDD     ---cast various columns as proper data type for portal tables removed w_ from new column names to match other portal processes.
 --         04/05/2019 - TMB - correct statement setting value of Clrt_Financial_Division_Name
+--         05/07/2019 - TMB - add logic for updated/new views Rptg.vwRef_Crosswalk_HSEntity_Prov and Rptg.vwRef_SOM_Hierarchy
 --************************************************************************************************************************
 
     SET NOCOUNT ON;
@@ -237,7 +238,8 @@ SELECT CAST('Appointment' AS VARCHAR(50)) AS event_type,
 	   evnts.som_department_id,
 	   evnts.som_department_name,
 	   evnts.som_division_id,
-	   evnts.som_division_name
+	   evnts.som_division_name,
+	   evnts.som_division_5 -- VARCHAR(150)
 
 FROM
 (
@@ -482,7 +484,8 @@ FROM
 			main.som_department_id,
 			main.som_department_name,
 			main.som_division_id,
-			main.som_division_name
+			main.som_division_name,
+			main.som_division_5
 
         FROM
         ( --main
@@ -594,20 +597,21 @@ FROM
 				   ser.Prov_Typ,
 				   ser.Staff_Resource,
 
-				   NULL AS som_group_id,
-				   NULL AS som_group_name,
 				   mdmloc.LOC_ID AS rev_location_id,
 				   mdmloc.REV_LOC_NAME AS rev_location,
 
-				   uwd.Clrt_Financial_Division AS financial_division_id,
-				   uwd.Clrt_Financial_Division_Name AS financial_division_name,
-				   uwd.Clrt_Financial_SubDivision AS financial_sub_division_id,
-				   uwd.Clrt_Financial_SubDivision_Name financial_sub_division_name,
+				   cwlk.Clrt_Financial_Division AS financial_division_id,
+				   CAST(cwlk.Clrt_Financial_Division_Name AS VARCHAR(150)) AS financial_division_name,
+				   cwlk.Clrt_Financial_SubDivision AS financial_sub_division_id,
+				   CAST(cwlk.Clrt_Financial_SubDivision_Name AS VARCHAR(150)) AS financial_sub_division_name,
 
-				   CAST(uwd.SOM_Department_ID AS INT) AS som_department_id,              ---BDD 3/29/2019 temp until ref table built 
-				   CAST(uwd.SOM_Department AS VARCHAR(150)) AS som_department_name,
-                   CAST(uwd.SOM_Division_ID AS INT) AS som_division_id,
-				   CAST(uwd.SOM_Division_Name AS VARCHAR(150)) AS som_division_name
+				   som.SOM_Group_ID AS som_group_id,
+				   CAST(som.SOM_group AS VARCHAR(150)) AS som_group_name,
+				   som.SOM_department_id AS som_department_id,
+				   CAST(som.SOM_department AS VARCHAR(150)) AS som_department_name,
+				   som.SOM_division_id AS som_division_id,
+				   CAST(som.SOM_division_name AS VARCHAR(150)) AS som_division_name,
+				   CAST(som.SOM_division_5 AS VARCHAR(150)) AS som_division_5
 
             FROM Stage.Scheduled_Appointment AS appts
                 LEFT OUTER JOIN DS_HSDW_Prod.Rptg.vwDim_Clrt_SERsrc ser
@@ -675,51 +679,15 @@ FROM
                 LEFT OUTER JOIN Stage.AmbOpt_Excluded_Department excl
 				    ON excl.DEPARTMENT_ID = appts.DEPARTMENT_ID
 
-	            LEFT OUTER JOIN
-	            (
-					SELECT DISTINCT
-					    sk_Dim_Physcn,
-						dim_Physcn_PROV_ID,
-						SOMSeq,
-						Clrt_Financial_Division,
-						Clrt_Financial_Division_Name,
-						Clrt_Financial_SubDivision,
-						Clrt_Financial_SubDivision_Name,
-						wd_Dept_Code,
-						wd_Department_Name,
-						wd.Som_Department_ID,
-						wd.SOM_Department,
-						wd.SOM_Division_ID,
-						wd.SOM_Division_Name
-					FROM
-					(
-					    SELECT
-						    hse.sk_Dim_Physcn,
-							hse.dim_Physcn_PROV_ID,
-							ROW_NUMBER() OVER (PARTITION BY hse.sk_Dim_Physcn ORDER BY hse.cw_Legacy_src_system) AS [SOMSeq],
-             			    Clrt_Financial_Division = CASE WHEN ISNUMERIC(hse.Clrt_Financial_Division) = 0 THEN CAST(NULL AS INT) ELSE CAST(hse.Clrt_Financial_Division AS INT) END,
-			    		    Clrt_Financial_Division_Name = CASE WHEN hse.Clrt_Financial_Division_Name = 'na' THEN CAST(NULL AS VARCHAR(150)) ELSE CAST (hse.Clrt_Financial_Division_Name AS VARCHAR(150)) END,
-						    Clrt_Financial_SubDivision = CASE WHEN ISNUMERIC(hse.Clrt_Financial_SubDivision) = 0 THEN CAST(NULL AS INT) ELSE CAST(hse.Clrt_Financial_SubDivision AS INT) END, 
-							Clrt_Financial_SubDivision_Name = CASE WHEN hse.Clrt_Financial_SubDivision_Name = 'na' THEN CAST(NULL AS VARCHAR(150)) ELSE CAST(hse.Clrt_Financial_SubDivision_Name AS VARCHAR(150)) END,
-							hse.SOM_DEPT_ID,
-							hse.wd_Dept_Code,
-							hse.wd_Department_Name,
-							som.SOM_Department_ID,
-							som.SOM_Department,
-							som.SOM_Division_ID,
-							som.SOM_Division_Name
-						FROM Rptg.vwRef_Crosswalk_HSEntity_Prov AS hse
-						   LEFT OUTER JOIN (SELECT DISTINCT SOM_Department_ID,
-						                                    SOM_Department,
-															SOM_Division_ID,
-															SOM_Division_Name
-						                       FROM Rptg.vwRef_SOM_Hierarchy
-						                   ) AS som
-						                  ON hse.wd_department_name = som.SOM_Division_Name
-					    WHERE ISNULL(wd_Is_Primary_Job,1) = 1
-					) wd
-				) AS uwd ON uwd.sk_Dim_Physcn = doc.sk_Dim_Physcn
-							AND uwd.SOMSeq = 1
+                -- -------------------------------------
+                -- SOM Hierarchy--
+                -- -------------------------------------
+                LEFT OUTER JOIN Rptg.vwRef_Crosswalk_HSEntity_Prov AS cwlk
+				    ON cwlk.sk_Dim_Physcn = doc.sk_Dim_Physcn
+                       AND cwlk.wd_Is_Primary_Job = 1
+                       AND cwlk.wd_Is_Position_Active = 1
+                LEFT OUTER JOIN Rptg.vwRef_SOM_Hierarchy AS som
+			        ON cwlk.wd_Dept_Code=som.SOM_division_5
 
             WHERE (appts.APPT_DT >= @locstartdate
               AND appts.APPT_DT < @locenddate)
