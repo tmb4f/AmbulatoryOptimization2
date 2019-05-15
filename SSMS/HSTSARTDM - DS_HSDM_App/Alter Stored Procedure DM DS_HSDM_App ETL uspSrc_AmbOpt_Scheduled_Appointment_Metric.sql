@@ -7,6 +7,7 @@ GO
 SET QUOTED_IDENTIFIER ON
 GO
 
+
 ALTER PROCEDURE [ETL].[uspSrc_AmbOpt_Scheduled_Appointment_Metric]
     (
      @startdate SMALLDATETIME = NULL
@@ -87,6 +88,8 @@ AS
 --         03/28/2019 - BDD     ---cast various columns as proper data type for portal tables removed w_ from new column names to match other portal processes.
 --         04/05/2019 - TMB - correct statement setting value of Clrt_Financial_Division_Name
 --         05/07/2019 - TMB - add logic for updated/new views Rptg.vwRef_Crosswalk_HSEntity_Prov and Rptg.vwRef_SOM_Hierarchy
+--         05/10/2019 - TMB - edit logic to resolve issue resulting from multiple primary, active wd jobs for a provider;
+--                            add place-holder columns for w_som_hs_area_id (smallint) and w_som_hs_area_name (VARCHAR(150))
 --************************************************************************************************************************
 
     SET NOCOUNT ON;
@@ -239,7 +242,9 @@ SELECT CAST('Appointment' AS VARCHAR(50)) AS event_type,
 	   evnts.som_department_name,
 	   evnts.som_division_id,
 	   evnts.som_division_name,
-	   evnts.som_division_5 -- VARCHAR(150)
+	   evnts.som_division_5,
+	   evnts.som_hs_area_id, -- SMALLINT
+	   evnts.som_hs_area_name -- VARCHAR(150)
 
 FROM
 (
@@ -485,7 +490,9 @@ FROM
 			main.som_department_name,
 			main.som_division_id,
 			main.som_division_name,
-			main.som_division_5
+			main.som_division_5,
+			main.som_hs_area_id,
+			main.som_hs_area_name
 
         FROM
         ( --main
@@ -600,18 +607,22 @@ FROM
 				   mdmloc.LOC_ID AS rev_location_id,
 				   mdmloc.REV_LOC_NAME AS rev_location,
 
-				   cwlk.Clrt_Financial_Division AS financial_division_id,
-				   CAST(cwlk.Clrt_Financial_Division_Name AS VARCHAR(150)) AS financial_division_name,
-				   cwlk.Clrt_Financial_SubDivision AS financial_sub_division_id,
-				   CAST(cwlk.Clrt_Financial_SubDivision_Name AS VARCHAR(150)) AS financial_sub_division_name,
+         		   uwd.Clrt_Financial_Division AS financial_division_id,
+				   CAST(uwd.Clrt_Financial_Division_Name AS VARCHAR(150)) AS financial_division_name,
 
-				   som.SOM_Group_ID AS som_group_id,
-				   CAST(som.SOM_group AS VARCHAR(150)) AS som_group_name,
-				   som.SOM_department_id AS som_department_id,
-				   CAST(som.SOM_department AS VARCHAR(150)) AS som_department_name,
-				   som.SOM_division_id AS som_division_id,
-				   CAST(som.SOM_division_name AS VARCHAR(150)) AS som_division_name,
-				   CAST(som.SOM_division_5 AS VARCHAR(150)) AS som_division_5
+				   uwd.Clrt_Financial_SubDivision AS financial_sub_division_id, 
+				   uwd.Clrt_Financial_SubDivision_Name AS financial_sub_division_name,
+
+				   uwd.SOM_Group_ID AS som_group_id,
+				   uwd.SOM_group AS som_group_name,
+				   uwd.SOM_department_id AS som_department_id,
+				   uwd.SOM_department AS som_department_name,
+				   uwd.SOM_division_id AS som_division_id,
+				   uwd.SOM_division_name AS som_division_name,
+				   uwd.SOM_division_5 AS som_division_5,
+
+				   CAST(NULL AS SMALLINT) AS som_hs_area_id,
+				   CAST(NULL AS VARCHAR(150)) AS som_hs_area_name
 
             FROM Stage.Scheduled_Appointment AS appts
                 LEFT OUTER JOIN DS_HSDW_Prod.Rptg.vwDim_Clrt_SERsrc ser
@@ -682,12 +693,59 @@ FROM
                 -- -------------------------------------
                 -- SOM Hierarchy--
                 -- -------------------------------------
-                LEFT OUTER JOIN Rptg.vwRef_Crosswalk_HSEntity_Prov AS cwlk
-				    ON cwlk.sk_Dim_Physcn = doc.sk_Dim_Physcn
-                       AND cwlk.wd_Is_Primary_Job = 1
-                       AND cwlk.wd_Is_Position_Active = 1
-                LEFT OUTER JOIN Rptg.vwRef_SOM_Hierarchy AS som
-			        ON cwlk.wd_Dept_Code=som.SOM_division_5
+	            LEFT OUTER JOIN
+	            (
+					SELECT DISTINCT
+					    wd.sk_Dim_Physcn,
+						wd.PROV_ID,
+             			wd.Clrt_Financial_Division,
+			    		wd.Clrt_Financial_Division_Name,
+						wd.Clrt_Financial_SubDivision, 
+					    wd.Clrt_Financial_SubDivision_Name,
+					    wd.wd_Dept_Code,
+					    wd.SOM_Group_ID,
+					    wd.SOM_Group,
+						wd.SOM_department_id,
+					    wd.SOM_department,
+						wd.SOM_division_id,
+						wd.SOM_division_name,
+						wd.SOM_division_5
+					FROM
+					(
+					    SELECT
+						    cwlk.sk_Dim_Physcn,
+							cwlk.PROV_ID,
+             			    cwlk.Clrt_Financial_Division,
+			    		    cwlk.Clrt_Financial_Division_Name,
+						    cwlk.Clrt_Financial_SubDivision, 
+							cwlk.Clrt_Financial_SubDivision_Name,
+							cwlk.wd_Dept_Code,
+							som.SOM_Group_ID,
+							som.SOM_Group,
+							som.SOM_department_id,
+							som.SOM_department,
+							som.SOM_division_id,
+							som.SOM_division_name,
+							som.SOM_division_5,
+							ROW_NUMBER() OVER (PARTITION BY cwlk.sk_Dim_Physcn ORDER BY som.som_group_id ASC) AS [SOMSeq]
+						FROM Rptg.vwRef_Crosswalk_HSEntity_Prov AS cwlk
+						    LEFT OUTER JOIN (SELECT DISTINCT
+							                     SOM_Group_ID,
+												 SOM_Group,
+												 SOM_department_id,
+												 SOM_department,
+												 SOM_division_id,
+												 SOM_division_name,
+												 SOM_division_5
+						                     FROM Rptg.vwRef_SOM_Hierarchy
+						                    ) AS som
+						        ON cwlk.wd_Dept_Code = som.SOM_division_5
+					    WHERE cwlk.wd_Is_Primary_Job = 1
+                              AND cwlk.wd_Is_Position_Active = 1
+					) AS wd
+					WHERE wd.SOMSeq = 1
+				) AS uwd
+				    ON uwd.sk_Dim_Physcn = doc.sk_Dim_Physcn
 
             WHERE (appts.APPT_DT >= @locstartdate
               AND appts.APPT_DT < @locenddate)

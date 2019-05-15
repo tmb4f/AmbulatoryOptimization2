@@ -96,7 +96,7 @@ SET @enddate = '2/9/2019 11:59 PM'
 --         04/05/2019 - TMB - correct statement setting value of Clrt_Financial_Division_Name
 --         05/07/2019 - TMB - add logic for updated/new views Rptg.vwRef_Crosswalk_HSEntity_Prov and Rptg.vwRef_SOM_Hierarchy
 --         05/09/2019 - TMB - edit logic to resolve issue resulting from multiple primary, active wd jobs for a provider;
---                            add place-holder columns for som_hs_area_id (smallint) and som_hs_area_name (VARCHAR(150))
+--                            add place-holder columns for w_som_hs_area_id (smallint) and w_som_hs_area_name (VARCHAR(150))
 --************************************************************************************************************************
 
     SET NOCOUNT ON;
@@ -112,11 +112,6 @@ DECLARE @locstartdate SMALLDATETIME,
 
 SET @locstartdate = @startdate
 SET @locenddate   = @enddate
-
-IF OBJECT_ID('tempdb..#metric ') IS NOT NULL
-DROP TABLE #metric
-
-SELECT @locstartdate, @locenddate
 
 SELECT CAST('Appointment' AS VARCHAR(50)) AS event_type,
        CASE
@@ -621,18 +616,19 @@ FROM
 				   mdmloc.LOC_ID AS rev_location_id,
 				   mdmloc.REV_LOC_NAME AS rev_location,
 
-				   CASE WHEN ISNUMERIC(uwd.Clrt_Financial_Division) = 0 THEN CAST(NULL AS INT) ELSE CAST(uwd.Clrt_Financial_Division AS INT) END AS financial_division_id,
+         		   uwd.Clrt_Financial_Division AS financial_division_id,
 				   CAST(uwd.Clrt_Financial_Division_Name AS VARCHAR(150)) AS financial_division_name,
-                   CASE WHEN ISNUMERIC(uwd.Clrt_Financial_SubDivision) = 0 THEN CAST(NULL AS INT) ELSE CAST(uwd.Clrt_Financial_SubDivision AS INT) END AS financial_sub_division_id,
-				   CAST(uwd.Clrt_Financial_SubDivision_Name AS VARCHAR(150)) AS financial_sub_division_name,
+
+				   uwd.Clrt_Financial_SubDivision AS financial_sub_division_id, 
+				   uwd.Clrt_Financial_SubDivision_Name AS financial_sub_division_name,
 
 				   uwd.SOM_Group_ID AS som_group_id,
-				   CAST(uwd.SOM_group AS VARCHAR(150)) AS som_group_name,
+				   uwd.SOM_group AS som_group_name,
 				   uwd.SOM_department_id AS som_department_id,
-				   CAST(uwd.SOM_department AS VARCHAR(150)) AS som_department_name,
+				   uwd.SOM_department AS som_department_name,
 				   uwd.SOM_division_id AS som_division_id,
-				   CAST(uwd.SOM_division_name AS VARCHAR(150)) AS som_division_name,
-				   CAST(uwd.SOM_division_5 AS VARCHAR(150)) AS som_division_5,
+				   uwd.SOM_division_name AS som_division_name,
+				   uwd.SOM_division_5 AS som_division_5,
 
 				   CAST(NULL AS SMALLINT) AS som_hs_area_id,
 				   CAST(NULL AS VARCHAR(150)) AS som_hs_area_name
@@ -706,12 +702,6 @@ FROM
                 -- -------------------------------------
                 -- SOM Hierarchy--
                 -- -------------------------------------
-        --        LEFT OUTER JOIN Rptg.vwRef_Crosswalk_HSEntity_Prov AS cwlk
-				    --ON cwlk.sk_Dim_Physcn = doc.sk_Dim_Physcn
-        --               AND cwlk.wd_Is_Primary_Job = 1
-        --               AND cwlk.wd_Is_Position_Active = 1
-        --        LEFT OUTER JOIN Rptg.vwRef_SOM_Hierarchy AS som
-			     --   ON cwlk.wd_Dept_Code=som.SOM_division_5
 	            LEFT OUTER JOIN
 	            (
 					SELECT DISTINCT
@@ -784,7 +774,7 @@ FROM #metric
 --WHERE Appointment_Lag_Days >= 0 AND appt_event_New_to_Specialty = 1 AND appt_event_Completed = 1
 --WHERE appt_event_Canceled = 0 OR appt_event_Canceled_Late = 1 OR (appt_event_Provider_Canceled = 1 AND Cancel_Lead_Days <= 45)
 --WHERE appt_event_Completed = 1
-WHERE som_group_id IS NOT NULL
+--WHERE som_group_id IS NOT NULL
 --GROUP BY APPT_STATUS_FLAG
 
 --ORDER BY Appointment_Lag_Days DESC

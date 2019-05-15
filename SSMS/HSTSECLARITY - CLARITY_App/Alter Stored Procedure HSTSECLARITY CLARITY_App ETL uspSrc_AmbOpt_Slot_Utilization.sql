@@ -45,6 +45,9 @@ AS
 --       08/22/2018 - TMB - edit stored procedure to include both slot and appointment level utilization counts
 --       04/08/2019 - TMB - add new standard columns
 --       04/08/2019 - TMB - add BUSINESS_UNIT
+--       05/08/2019 - TMB - add logic for updated/new views Rptg.vwRef_Crosswalk_HSEntity_Prov and Rptg.vwRef_SOM_Hierarchy
+--       05/09/2019 - TMB - edit logic to resolve issue resulting from multiple primary, active wd jobs for a provider
+--       05/10/2019 - TMB - add place-holder columns for w_som_hs_area_id (smallint) and w_som_hs_area_name (VARCHAR(150))
 --************************************************************************************************************************
 
     SET NOCOUNT ON;
@@ -305,7 +308,10 @@ INSERT Stage.AmbOpt_Dash_Slot_Utilization
            ,som_department_name
            ,som_division_id
            ,som_division_name
-           ,BUSINESS_UNIT -- VARCHAR(20)
+           ,BUSINESS_UNIT
+           ,som_division_5 -- VARCHAR(150)
+		   ,som_hs_area_id -- SMALLINT
+		   ,som_hs_area_name -- VARCHAR(150)
 		   )
 SELECT 
        CAST('Slot Utilization' AS VARCHAR(50)) AS event_type
@@ -378,19 +384,27 @@ SELECT
 	  ,ser.STAFF_RESOURCE
 	  ,ser.PROVIDER_TYPE_C
 	  ,ser.PROV_TYPE
-	  ,NULL AS som_group_id
-	  ,NULL AS som_group_name
+
 	  ,mdm.LOC_ID AS rev_location_id
 	  ,mdm.REV_LOC_NAME AS rev_location
+	  
 	  ,uwd.Clrt_Financial_Division AS financial_division_id
-	  ,uwd.Clrt_Financial_Division_Name AS financial_division_name
+	  ,CAST(uwd.Clrt_Financial_Division_Name AS VARCHAR(150)) AS financial_division_name
+	  
 	  ,uwd.Clrt_Financial_SubDivision AS financial_sub_division_id
 	  ,uwd.Clrt_Financial_SubDivision_Name AS financial_sub_division_name
-	  ,CAST(uwd.SOM_Department_ID AS INT) AS som_department_id
-	  ,CAST(uwd.SOM_Department AS VARCHAR(150)) AS som_department_name
-	  ,CAST(uwd.SOM_Division_ID AS INT)	AS som_division_id
-	  ,CAST(uwd.SOM_Division_Name AS VARCHAR(150)) AS som_division_name
-	  ,mdm.BUSINESS_UNIT
+	  
+	  ,uwd.SOM_Group_ID AS som_group_id
+	  ,uwd.SOM_group AS som_group_name
+	  ,uwd.SOM_department_id AS som_department_id
+	  ,uwd.SOM_department AS som_department_name
+	  ,uwd.SOM_division_id AS som_division_id
+	  ,uwd.SOM_division_name AS som_division_name
+
+	  ,mdm.BUSINESS_UNIT	  
+	  ,uwd.SOM_division_5 AS som_division_5
+	  ,CAST(NULL AS SMALLINT) AS som_hs_area_id
+	  ,CAST(NULL AS VARCHAR(150)) AS som_hs_area_name
 FROM
     #utildatetable AS date_dim
 LEFT OUTER JOIN
@@ -503,52 +517,63 @@ ON physsvc.Physician_Roster_Name = CASE
                                      WHEN mdmphyscn.Service_Line IS NOT NULL THEN mdmphyscn.Service_Line
 		                             ELSE 'No Value Specified'
 	                               END
-LEFT OUTER JOIN -- 04/08/2019 -Tom B Add to extract standard columns from vwRef_Crosswalk_HSEntity_Prov
-(
-	SELECT			 PROV_ID
-					,SOMSeq
-					,Clrt_Financial_Division
-					,Clrt_Financial_Division_Name
-					,Clrt_Financial_SubDivision
-					,Clrt_Financial_SubDivision_Name
-					,SOM_DEPT_ID
-					,wd_Dept_Code
-					,wd_Department_Name
-					,wd_Is_Primary_Job
-					,SOM_Department_ID
-					,SOM_Department
-					,SOM_Division_ID
-					,SOM_Division_Name
-	FROM
-	(
-		SELECT			hse.PROV_ID,
-						ROW_NUMBER() OVER (PARTITION BY hse.PROV_ID ORDER BY hse.cw_Legacy_src_system) AS [SOMSeq],
-             			Clrt_Financial_Division = CASE WHEN ISNUMERIC(hse.Clrt_Financial_Division) = 0 THEN CAST(NULL AS INT) ELSE CAST(hse.Clrt_Financial_Division AS INT) END,
-			    		Clrt_Financial_Division_Name = CASE WHEN hse.Clrt_Financial_Division_Name = 'na' THEN CAST(NULL AS VARCHAR(150)) ELSE CAST (hse.Clrt_Financial_Division AS VARCHAR(150)) END,
-						Clrt_Financial_SubDivision = CASE WHEN ISNUMERIC(hse.Clrt_Financial_SubDivision) = 0 THEN CAST(NULL AS INT) ELSE CAST(hse.Clrt_Financial_SubDivision AS INT) END, 
-						Clrt_Financial_SubDivision_Name = CASE WHEN hse.Clrt_Financial_SubDivision_Name = 'na' THEN CAST(NULL AS VARCHAR(150)) ELSE CAST(hse.Clrt_Financial_SubDivision_Name AS VARCHAR(150)) END,
-						hse.SOM_DEPT_ID,
-						hse.wd_Dept_Code,
-						hse.wd_Department_Name,
-						hse.wd_Is_Primary_Job,
-						som.SOM_Department_ID,
-						som.SOM_Department,
-						som.SOM_Division_ID,
-						som.SOM_Division_Name
-		FROM Rptg.vwRef_Crosswalk_HSEntity_Prov AS hse
-		LEFT OUTER JOIN
-		(
-			SELECT DISTINCT SOM_Department_ID,
-							SOM_Department,
-							SOM_Division_ID,
-							SOM_Division_Name
-			FROM Rptg.vwRef_SOM_Hierarchy
-		) AS som
-		ON hse.wd_department_name = som.SOM_Division_Name
-		WHERE ISNULL(hse.wd_Is_Primary_Job,1) = 1
-	) wd
-) AS uwd ON uwd.PROV_ID = util.provider_id
-			AND uwd.SOMSeq = 1
+
+                -- -------------------------------------
+                -- SOM Hierarchy--
+                -- -------------------------------------
+	            LEFT OUTER JOIN
+	            (
+					SELECT DISTINCT
+					    wd.sk_Dim_Physcn,
+						wd.PROV_ID,
+             			wd.Clrt_Financial_Division,
+			    		wd.Clrt_Financial_Division_Name,
+						wd.Clrt_Financial_SubDivision, 
+					    wd.Clrt_Financial_SubDivision_Name,
+					    wd.wd_Dept_Code,
+					    wd.SOM_Group_ID,
+					    wd.SOM_Group,
+						wd.SOM_department_id,
+					    wd.SOM_department,
+						wd.SOM_division_id,
+						wd.SOM_division_name,
+						wd.SOM_division_5
+					FROM
+					(
+					    SELECT
+						    cwlk.sk_Dim_Physcn,
+							cwlk.PROV_ID,
+             			    cwlk.Clrt_Financial_Division,
+			    		    cwlk.Clrt_Financial_Division_Name,
+						    cwlk.Clrt_Financial_SubDivision, 
+							cwlk.Clrt_Financial_SubDivision_Name,
+							cwlk.wd_Dept_Code,
+							som.SOM_Group_ID,
+							som.SOM_Group,
+							som.SOM_department_id,
+							som.SOM_department,
+							som.SOM_division_id,
+							som.SOM_division_name,
+							som.SOM_division_5,
+							ROW_NUMBER() OVER (PARTITION BY cwlk.sk_Dim_Physcn ORDER BY som.som_group_id ASC) AS [SOMSeq]
+						FROM Rptg.vwRef_Crosswalk_HSEntity_Prov AS cwlk
+						    LEFT OUTER JOIN (SELECT DISTINCT
+							                     SOM_Group_ID,
+												 SOM_Group,
+												 SOM_department_id,
+												 SOM_department,
+												 SOM_division_id,
+												 SOM_division_name,
+												 SOM_division_5
+						                     FROM Rptg.vwRef_SOM_Hierarchy
+						                    ) AS som
+						        ON cwlk.wd_Dept_Code = som.SOM_division_5
+					    WHERE cwlk.wd_Is_Primary_Job = 1
+                              AND cwlk.wd_Is_Position_Active = 1
+					) AS wd
+					WHERE wd.SOMSeq = 1
+				) AS uwd
+				    ON uwd.PROV_ID = date_dim.PROV_ID
 
 WHERE
       ((date_dim.day_date >= @slotstartdate) AND (date_dim.day_date < @slotenddate))

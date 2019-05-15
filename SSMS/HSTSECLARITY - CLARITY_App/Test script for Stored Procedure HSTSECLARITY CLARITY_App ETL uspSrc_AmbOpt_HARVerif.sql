@@ -11,10 +11,12 @@ DECLARE @startdate SMALLDATETIME = NULL,
         @enddate SMALLDATETIME = NULL--,
         --@dt SMALLINT = NULL
 
-SET @startdate = '2/3/2019 00:00 AM'
-SET @enddate = '2/9/2019 11:59 PM'
+--SET @startdate = '2/3/2019 00:00 AM'
+--SET @enddate = '2/9/2019 11:59 PM'
 --SET @startdate = '7/1/2018 00:00 AM'
 --SET @enddate = '6/30/2019 11:59 PM'
+SET @startdate = '1/1/2017 00:00 AM'
+SET @enddate = '6/30/2017 11:59 PM'
 
 --EXEC [ETL].[uspSrc_AmbOpt_HARVerif]
 
@@ -101,6 +103,8 @@ SET @enddate = '2/9/2019 11:59 PM'
 --         04/04/2019 - TMB     -- added columns CANCEL_INITIATOR, CANCEL_LEAD_HOURS, Cancel_Lead_Days,
 --                                  appt_event_Canceled, appt_event_Canceled_Late, appt_event_Provider_Canceled
 --         04/09/2019 - TMB     -- add columns STAFF_RESOURCE_C, STAFF_RESOURCE, PROVIDER_TYPE_C, PROV_TYPE, BUSINESS_UNIT
+--         05/10/2019 - TMB     -- add logic for updated/new views Rptg.vwRef_Crosswalk_HSEntity_Prov and Rptg.vwRef_SOM_Hierarchy;
+--                                 add place-holder columns for w_som_hs_area_id (smallint) and w_som_hs_area_name (VARCHAR(150))
 --************************************************************************************************************************
 
 SET NOCOUNT ON;
@@ -265,21 +269,23 @@ SELECT DISTINCT
 				   ,DATEDIFF(DAY, harvrf.LAST_STAT_CHNG_DTTM, appt.APPT_TIME)                                                AS HAR_Verification_DATEDIFF -- INTEGER
 				   ,appt.APPT_MADE_DTTM
 				   ,dp.sk_Dim_Physcn
-				   ,NULL                                                                                                     AS som_group_id
-				   ,NULL                                                                                                     AS som_group_name
+
 				   ,mdm.LOC_ID                                                                                               AS rev_location_id
 				   ,mdm.REV_LOC_NAME                                                                                         AS rev_location
 
 				   ,uwd.Clrt_Financial_Division                                                                              AS financial_division_id
-				   ,uwd.Clrt_Financial_Division_Name																		 AS financial_division_name
+				   ,CAST(uwd.Clrt_Financial_Division_Name AS VARCHAR(150))													 AS financial_division_name
 				   ,uwd.Clrt_Financial_SubDivision                                                                           AS financial_sub_division_id
 				   ,uwd.Clrt_Financial_SubDivision_Name																		 AS financial_sub_division_name
 
---				   ,uwd.SOM_DEPT_ID                                                                                          AS som_department_id
-				   ,CAST(uwd.SOM_Department_ID AS INT)  AS som_department_id    ---bdd 3/29/2019 temp until ref table built
-				   ,CAST(uwd.SOM_Department AS VARCHAR(150))																 AS som_department_name
-				   ,CAST(uwd.SOM_Division_ID AS INT)																		 AS som_division_id
-				   ,CAST(uwd.SOM_Division_Name AS VARCHAR(150))                                                              AS som_division_name
+				   ,uwd.SOM_Group_ID																						 AS som_group_id
+				   ,uwd.SOM_group																						     AS som_group_name
+				   
+				   ,uwd.SOM_department_id																					 AS som_department_id
+				   ,uwd.SOM_department																						 AS som_department_name
+				   ,uwd.SOM_division_id																						 AS som_division_id
+				   ,uwd.SOM_division_name																					 AS som_division_name
+				   ,uwd.SOM_division_5																						 AS som_division_5 -- VARCHAR(150)
 
 				   ,CAST(appt.CANCEL_INITIATOR AS VARCHAR(55))                                                               AS CANCEL_INITIATOR
 				   ,CAST(appt.CANCEL_LEAD_HOURS AS INTEGER)                                                                  AS CANCEL_LEAD_HOURS
@@ -295,11 +301,17 @@ SELECT DISTINCT
 						 ELSE 0
 					END AS appt_event_Provider_Canceled
 					
-	               ,ser.STAFF_RESOURCE_C -- INTEGER
-	               ,ser.STAFF_RESOURCE -- VARCHAR(20)
-	               ,ser.PROVIDER_TYPE_C -- VARCHAR(66)
-	               ,ser.PROV_TYPE -- VARCHAR(66)
-				   ,mdm.BUSINESS_UNIT -- VARCHAR(20)
+	               ,ser.STAFF_RESOURCE_C
+	               ,ser.STAFF_RESOURCE
+	               ,ser.PROVIDER_TYPE_C
+	               ,ser.PROV_TYPE
+				   ,mdm.BUSINESS_UNIT
+				   
+				   --,CAST(NULL AS SMALLINT)																					 AS som_hs_area_id
+				   --,CAST(NULL AS VARCHAR(150))																				 AS som_hs_area_name
+				   ,CASE WHEN uwd.SOM_Group_ID IS NULL THEN CAST(NULL AS SMALLINT) ELSE CAST(3 AS SMALLINT) End                  AS som_hs_area_id -- SMALLINT
+                   ,CASE WHEN uwd.SOM_Group_ID IS NULL THEN CAST(NULL AS VARCHAR(150)) ELSE CAST('School of Medicine' AS VARCHAR(150)) END AS som_hs_area_name -- VARCHAR(150)
+
 
 INTO                #HAR
 
@@ -584,51 +596,108 @@ FROM                CLARITY_App.dbo.Dim_Date                           AS dmdt
                 -- -------------------------------------
     LEFT OUTER JOIN Stage.AmbOpt_Excluded_Department                    AS excl ON excl.DEPARTMENT_ID = appt.DEPARTMENT_ID
 
-	LEFT OUTER JOIN -- 03/26/2019 -Tom B Add to extract standard columns from vwRef_Crosswalk_HSEntity_Prov
-	                (
-					    SELECT				PROV_ID --4/2/2019 -Tom B Utilize PROV_ID value added to view
-						                   ,SOMSeq
-										   ,Clrt_Financial_Division
-										   ,Clrt_Financial_Division_Name
-										   ,Clrt_Financial_SubDivision
-										   ,Clrt_Financial_SubDivision_Name
-										   ,SOM_DEPT_ID
-										   ,wd_Dept_Code
-										   ,wd_Department_Name
-										   ,wd_Is_Primary_Job
-										   ,SOM_Department_ID
-										   ,SOM_Department
-										   ,SOM_Division_ID
-										   ,SOM_Division_Name
-					    FROM                (
-												SELECT
-													hse.PROV_ID, --4/2/2019 -Tom B Utilize PROV_ID value added to view
-													ROW_NUMBER() OVER (PARTITION BY hse.PROV_ID ORDER BY hse.cw_Legacy_src_system) AS [SOMSeq], --4/2/2019 -Tom B Use PROV_ID to partition
-             										Clrt_Financial_Division = CASE WHEN ISNUMERIC(hse.Clrt_Financial_Division) = 0 THEN CAST(NULL AS INT) ELSE CAST(hse.Clrt_Financial_Division AS INT) END,
-			    									Clrt_Financial_Division_Name = CASE WHEN hse.Clrt_Financial_Division_Name = 'na' THEN CAST(NULL AS VARCHAR(150)) ELSE CAST (hse.Clrt_Financial_Division AS VARCHAR(150)) END,
-													Clrt_Financial_SubDivision = CASE WHEN ISNUMERIC(hse.Clrt_Financial_SubDivision) = 0 THEN CAST(NULL AS INT) ELSE CAST(hse.Clrt_Financial_SubDivision AS INT) END, 
-													Clrt_Financial_SubDivision_Name = CASE WHEN hse.Clrt_Financial_SubDivision_Name = 'na' THEN CAST(NULL AS VARCHAR(150)) ELSE CAST(hse.Clrt_Financial_SubDivision_Name AS VARCHAR(150)) END,
-													hse.SOM_DEPT_ID,
-													hse.wd_Dept_Code,
-													hse.wd_Department_Name,
-													hse.wd_Is_Primary_Job,
-													som.SOM_Department_ID,
-													som.SOM_Department,
-													som.SOM_Division_ID,
-													som.SOM_Division_Name
-												FROM Rptg.vwRef_Crosswalk_HSEntity_Prov AS hse
-												   LEFT OUTER JOIN (SELECT DISTINCT SOM_Department_ID,
-																					SOM_Department,
-																					SOM_Division_ID,
-																					SOM_Division_Name
-																	   FROM Rptg.vwRef_SOM_Hierarchy
-																   ) AS som
-																  ON hse.wd_department_name = som.SOM_Division_Name
-												WHERE ISNULL(hse.wd_Is_Primary_Job,1) = 1
+	--LEFT OUTER JOIN -- 03/26/2019 -Tom B Add to extract standard columns from vwRef_Crosswalk_HSEntity_Prov
+	--                (
+	--				    SELECT				PROV_ID --4/2/2019 -Tom B Utilize PROV_ID value added to view
+	--					                   ,SOMSeq
+	--									   ,Clrt_Financial_Division
+	--									   ,Clrt_Financial_Division_Name
+	--									   ,Clrt_Financial_SubDivision
+	--									   ,Clrt_Financial_SubDivision_Name
+	--									   ,SOM_DEPT_ID
+	--									   ,wd_Dept_Code
+	--									   ,wd_Department_Name
+	--									   ,wd_Is_Primary_Job
+	--									   ,SOM_Department_ID
+	--									   ,SOM_Department
+	--									   ,SOM_Division_ID
+	--									   ,SOM_Division_Name
+	--				    FROM                (
+	--											SELECT
+	--												hse.PROV_ID, --4/2/2019 -Tom B Utilize PROV_ID value added to view
+	--												ROW_NUMBER() OVER (PARTITION BY hse.PROV_ID ORDER BY hse.cw_Legacy_src_system) AS [SOMSeq], --4/2/2019 -Tom B Use PROV_ID to partition
+ --            										Clrt_Financial_Division = CASE WHEN ISNUMERIC(hse.Clrt_Financial_Division) = 0 THEN CAST(NULL AS INT) ELSE CAST(hse.Clrt_Financial_Division AS INT) END,
+	--		    									Clrt_Financial_Division_Name = CASE WHEN hse.Clrt_Financial_Division_Name = 'na' THEN CAST(NULL AS VARCHAR(150)) ELSE CAST (hse.Clrt_Financial_Division AS VARCHAR(150)) END,
+	--												Clrt_Financial_SubDivision = CASE WHEN ISNUMERIC(hse.Clrt_Financial_SubDivision) = 0 THEN CAST(NULL AS INT) ELSE CAST(hse.Clrt_Financial_SubDivision AS INT) END, 
+	--												Clrt_Financial_SubDivision_Name = CASE WHEN hse.Clrt_Financial_SubDivision_Name = 'na' THEN CAST(NULL AS VARCHAR(150)) ELSE CAST(hse.Clrt_Financial_SubDivision_Name AS VARCHAR(150)) END,
+	--												hse.SOM_DEPT_ID,
+	--												hse.wd_Dept_Code,
+	--												hse.wd_Department_Name,
+	--												hse.wd_Is_Primary_Job,
+	--												som.SOM_Department_ID,
+	--												som.SOM_Department,
+	--												som.SOM_Division_ID,
+	--												som.SOM_Division_Name
+	--											FROM Rptg.vwRef_Crosswalk_HSEntity_Prov AS hse
+	--											   LEFT OUTER JOIN (SELECT DISTINCT SOM_Department_ID,
+	--																				SOM_Department,
+	--																				SOM_Division_ID,
+	--																				SOM_Division_Name
+	--																   FROM Rptg.vwRef_SOM_Hierarchy
+	--															   ) AS som
+	--															  ON hse.wd_department_name = som.SOM_Division_Name
+	--											WHERE ISNULL(hse.wd_Is_Primary_Job,1) = 1
 
-											) wd
-					) AS uwd ON uwd.PROV_ID = appt.VISIT_PROV_ID --4/2/2019 -Tom B Join to encounter provider id
-					  	     AND uwd.SOMSeq = 1
+	--										) wd
+	--				) AS uwd ON uwd.PROV_ID = appt.VISIT_PROV_ID --4/2/2019 -Tom B Join to encounter provider id
+	--				  	     AND uwd.SOMSeq = 1
+
+                -- -------------------------------------
+                -- SOM Hierarchy--
+                -- -------------------------------------
+	            LEFT OUTER JOIN
+	            (
+					SELECT DISTINCT
+					    wd.sk_Dim_Physcn,
+						wd.PROV_ID,
+             			wd.Clrt_Financial_Division,
+			    		wd.Clrt_Financial_Division_Name,
+						wd.Clrt_Financial_SubDivision, 
+					    wd.Clrt_Financial_SubDivision_Name,
+					    wd.wd_Dept_Code,
+					    wd.SOM_Group_ID,
+					    wd.SOM_Group,
+						wd.SOM_department_id,
+					    wd.SOM_department,
+						wd.SOM_division_id,
+						wd.SOM_division_name,
+						wd.SOM_division_5
+					FROM
+					(
+					    SELECT
+						    cwlk.sk_Dim_Physcn,
+							cwlk.PROV_ID,
+             			    cwlk.Clrt_Financial_Division,
+			    		    cwlk.Clrt_Financial_Division_Name,
+						    cwlk.Clrt_Financial_SubDivision, 
+							cwlk.Clrt_Financial_SubDivision_Name,
+							cwlk.wd_Dept_Code,
+							som.SOM_Group_ID,
+							som.SOM_Group,
+							som.SOM_department_id,
+							som.SOM_department,
+							som.SOM_division_id,
+							som.SOM_division_name,
+							som.SOM_division_5,
+							ROW_NUMBER() OVER (PARTITION BY cwlk.sk_Dim_Physcn ORDER BY som.som_group_id ASC) AS [SOMSeq]
+						FROM Rptg.vwRef_Crosswalk_HSEntity_Prov AS cwlk
+						    LEFT OUTER JOIN (SELECT DISTINCT
+							                     SOM_Group_ID,
+												 SOM_Group,
+												 SOM_department_id,
+												 SOM_department,
+												 SOM_division_id,
+												 SOM_division_name,
+												 SOM_division_5
+						                     FROM Rptg.vwRef_SOM_Hierarchy
+						                    ) AS som
+						        ON cwlk.wd_Dept_Code = som.SOM_division_5
+					    WHERE cwlk.wd_Is_Primary_Job = 1
+                              AND cwlk.wd_Is_Position_Active = 1
+					) AS wd
+					WHERE wd.SOMSeq = 1
+				) AS uwd
+				    ON uwd.PROV_ID = appt.VISIT_PROV_ID
 
 WHERE               1 = 1
 
