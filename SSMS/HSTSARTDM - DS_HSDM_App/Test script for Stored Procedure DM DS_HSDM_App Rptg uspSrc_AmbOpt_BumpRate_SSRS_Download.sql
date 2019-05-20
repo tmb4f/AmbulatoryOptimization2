@@ -25,8 +25,8 @@ DECLARE @StartDate SMALLDATETIME,
 --SET @StartDate = '2/28/2019 00:00 AM'
 --SET @StartDate = '7/1/2018 00:00 AM'
 --SET @EndDate = '2/28/2019 11:59 PM'
-SET @StartDate = '4/2/2019 00:00 AM'
-SET @EndDate = '5/1/2019 11:59 PM'
+SET @StartDate = '5/1/2019 00:00 AM'
+SET @EndDate = '5/15/2019 11:59 PM'
 
 SET NOCOUNT ON
 
@@ -48,8 +48,8 @@ VALUES
 --(9),--Surgical Subspecialties
 --(10),--Transplant
 --(11) --Womens and Childrens
---(0)  --(All)
-(1) --Digestive Health
+(0)  --(All)
+--(1) --Digestive Health
 --(1),--Digestive Health
 --(2) --Heart and Vascular
 ;
@@ -333,9 +333,10 @@ VALUES
 --('267'),--MD-RADL Radiology
 --('292'),--MD-SURG Surgery
 --('305'),--MD-UROL Urology
-('0') --(All)
+--('0') --(All)
 --('57'),--MD-INMD Internal Medicine
 --('292')--,--MD-SURG Surgery
+('47')--,--MD-ANES Anesthesiology
 ;
 
 SELECT @in_somdeps = COALESCE(@in_somdeps+',' ,'') + CAST(SOMDepartmentId AS VARCHAR(MAX))
