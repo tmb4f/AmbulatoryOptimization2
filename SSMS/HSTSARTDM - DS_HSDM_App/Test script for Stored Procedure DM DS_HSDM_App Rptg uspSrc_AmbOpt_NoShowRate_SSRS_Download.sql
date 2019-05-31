@@ -23,10 +23,10 @@ DECLARE @StartDate SMALLDATETIME,
 
 --SET @StartDate = '2/1/2019 00:00 AM'
 --SET @StartDate = '2/28/2019 00:00 AM'
---SET @StartDate = '7/1/2018 00:00 AM'
---SET @EndDate = '2/28/2019 11:59 PM'
-SET @StartDate = '4/15/2019 00:00 AM'
-SET @EndDate = '5/14/2019 11:59 PM'
+SET @StartDate = '7/1/2018 00:00 AM'
+SET @EndDate = '4/30/2019 11:59 PM'
+--SET @StartDate = '4/24/2019 00:00 AM'
+--SET @EndDate = '5/23/2019 11:59 PM'
 
 SET NOCOUNT ON
 
@@ -52,29 +52,6 @@ VALUES
 --(1) --Digestive Health
 --(1),--Digestive Health
 --(2) --Heart and Vascular
-
---DECLARE @ServiceLine TABLE (ServiceLineName VARCHAR(150))
-
---INSERT INTO @ServiceLine
---(
---    ServiceLineName
---)
---VALUES
-----('Digestive Health'),
-----('Heart and Vascular'),
-----('Medical Subspecialties'),
-----('Musculoskeletal'),
-----('Neurosciences and Behavioral Health'),
-----('Oncology'),
-----('Ophthalmology'),
-----('Primary Care'),
-----('Surgical Subspecialties'),
-----('Transplant'),
-----('Womens and Childrens')
-----('Medical Subspecialties')
---('Digestive Health')
-----('Womens and Childrens')
---;
 
 SELECT @in_servLine = COALESCE(@in_servLine+',' ,'') + CAST(ServiceLineId AS VARCHAR(MAX))
 FROM @ServiceLine
@@ -356,32 +333,6 @@ VALUES
 --('10') --Women's and Children's
 ;
 
---DECLARE @Pod TABLE (PodName VARCHAR(100))
-
---INSERT INTO @Pod
---(
---    PodName
---)
---VALUES
-----('Cancer'),
-----('Musculoskeletal'),
-----('Primary Care'),
-----('Surgical Procedural Specialties'),
-----('Transplant'),
-----('Medical Specialties'),
-----('Radiology'),
-----('Heart and Vascular Center'),
-----('Neurosciences and Psychiatry'),
-----('Women''s and Children''s'),
-----('CPG'),
-----('UVA Community Cancer POD'),
-----('Digestive Health'),
-----('Ophthalmology'),
-----('Community Medicine')
-----('Medical Specialties')
---('Digestive Health')
---;
-
 SELECT @in_pods = COALESCE(@in_pods+',' ,'') + CAST(PodId AS VARCHAR(MAX))
 FROM @Pod
 
@@ -593,8 +544,8 @@ VALUES
 --('267'),--MD-RADL Radiology
 --('292'),--MD-SURG Surgery
 --('305'),--MD-UROL Urology
-('0') --(All)
---('57'),--MD-INMD Internal Medicine
+--('0') --(All)
+('57')--,--MD-INMD Internal Medicine
 --('292')--,--MD-SURG Surgery
 --('47')--,--MD-ANES Anesthesiology
 ;
@@ -1147,10 +1098,10 @@ WHERE 1 = 1
              )
       )--;
 
---ORDER BY [No Show] DESC
+ORDER BY [No Show] DESC
 --ORDER BY event_date
-ORDER BY w_hub_id
-       , epic_department_name_external
-       , event_date
+--ORDER BY w_hub_id
+--       , epic_department_name_external
+--       , event_date
 
 GO

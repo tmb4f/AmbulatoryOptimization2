@@ -23,10 +23,10 @@ DECLARE @StartDate SMALLDATETIME,
 
 --SET @StartDate = '2/1/2019 00:00 AM'
 --SET @StartDate = '2/28/2019 00:00 AM'
---SET @StartDate = '7/1/2018 00:00 AM'
---SET @EndDate = '2/28/2019 11:59 PM'
-SET @StartDate = '4/16/2019 00:00 AM'
-SET @EndDate = '5/15/2019 11:59 PM'
+SET @StartDate = '7/1/2018 00:00 AM'
+SET @EndDate = '4/30/2019 11:59 PM'
+--SET @StartDate = '4/16/2019 00:00 AM'
+--SET @EndDate = '5/15/2019 11:59 PM'
 
 SET NOCOUNT ON
 
@@ -355,7 +355,7 @@ INSERT INTO @SOMDivision
     SOMDivisionId
 )
 VALUES
-('0')--,--(All)
+--('0')--,--(All)
 --('60'),--MD-INMD Allergy
 --('66'),--MD-INMD CV Medicine
 --('68'),--MD-INMD Endocrinology
@@ -417,6 +417,7 @@ VALUES
 --('310')--,--MD-UROL Urology, General
 --('80'),--MD-INMD Hem/Onc
 --('76')--,--MD-INMD Hospital Medicine
+('243')--,--MD-PEDT Hematology
 ;
 
 SELECT @in_somdivs = COALESCE(@in_somdivs+',' ,'') + CAST(SOMDivisionId AS VARCHAR(MAX))
