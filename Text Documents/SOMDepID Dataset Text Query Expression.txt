@@ -1,1 +1,25 @@
 ="SELECT DISTINCT CASE WHEN '0' = @in_somdeps THEN 0 ELSE w_som_department_id END AS som_department_id, CASE WHEN '0' = @in_somdeps THEN '(All)' ELSE w_som_department_name END AS som_department_name FROM [DS_HSDM_App].[TabRptg].[Dash_AmbOpt_ScheduledAppointmentMetric_Tiles] WHERE (w_som_department_id IS NOT NULL) AND (w_som_department_name IS NOT NULL) AND ('0' IN (@in_somdeps) OR w_som_department_id IN (@in_somdeps)) order by som_department_name;"
+DECLARE @tab_somdeps TABLE
+(
+    som_department_id VARCHAR(MAX)
+);
+INSERT INTO @tab_somdeps
+SELECT Param
+FROM ETL.fn_ParmParse(@in_somdeps, ',');
+SELECT DISTINCT CASE WHEN '0' IN (@in_somdeps) THEN 0 ELSE som_department_id END AS som_department_id
+  , CASE WHEN '0' IN (@in_somdeps) THEN '(All)' ELSE som_department_name END AS som_department_name FROM [DS_HSDM_App].[TabRptg].[Dash_BalancedScorecard_HCAHPS_Tiles] 
+where (som_department_id IS NOT NULL)
+      AND
+	  (som_department_name IS NOT NULL)
+	  AND
+      (
+          '0' IN
+          (
+              SELECT som_department_id FROM @tab_somdeps
+          )
+          OR som_department_id IN
+             (
+                 SELECT som_department_id FROM @tab_somdeps
+             )
+      )
+order by som_department_name;

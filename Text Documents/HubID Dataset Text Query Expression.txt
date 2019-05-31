@@ -1,1 +1,26 @@
 ="SELECT DISTINCT CASE WHEN '0' = @in_hubs THEN 0 ELSE hub_id END AS hub_id, CASE WHEN '0' = @in_hubs THEN '(All)' ELSE hub_name END AS hub_name FROM [DS_HSDM_App].[TabRptg].[Dash_AmbOpt_ScheduledAppointmentMetric_Tiles] WHERE (hub_id IS NOT NULL) AND (hub_name IS NOT NULL) AND ('0' IN (@in_hubs) OR hub_id IN (@in_hubs)) order by hub_name;"
+DECLARE @tab_hubs TABLE
+(
+    hub_id VARCHAR(MAX)
+);
+INSERT INTO @tab_hubs
+SELECT Param
+FROM ETL.fn_ParmParse(@in_hubs, ',');
+SELECT DISTINCT 0 AS hub_id, '(All)' AS hub_name
+/*SELECT DISTINCT CASE WHEN '0' IN (@in_hubs) THEN 0 ELSE hub_id END AS hub_id
+  , CASE WHEN '0' IN (@in_hubs) THEN '(All)' ELSE hub_name END AS hub_name FROM [DS_HSDM_App].[TabRptg].[Dash_BalancedScorecard_HCAHPS_Tiles] 
+where (hub_id IS NOT NULL)
+      AND
+	  (hub_name IS NOT NULL)
+	  AND
+      (
+          '0' IN
+          (
+              SELECT hub_id FROM @tab_hubs
+          )
+          OR hub_id IN
+             (
+                 SELECT hub_id FROM @tab_hubs
+             )
+      )*/
+order by hub_name;

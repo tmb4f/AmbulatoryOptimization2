@@ -1,1 +1,26 @@
 ="SELECT DISTINCT CASE WHEN '0' = @in_pods THEN 0 ELSE pod_id END AS pod_id, CASE WHEN '0' = @in_pods THEN '(All)' ELSE pod_name END AS pod_name FROM [DS_HSDM_App].[TabRptg].[Dash_AmbOpt_ScheduledAppointmentMetric_Tiles] WHERE (pod_id IS NOT NULL) AND (pod_name IS NOT NULL) AND ('0' IN (@in_pods) OR pod_id IN (@in_pods)) order by pod_name;"
+DECLARE @tab_pods TABLE
+(
+    pod_id VARCHAR(MAX)
+);
+INSERT INTO @tab_pods
+SELECT Param
+FROM ETL.fn_ParmParse(@in_pods, ',');
+SELECT DISTINCT 0 AS pod_id, '(All)' AS pod_name
+/*SELECT DISTINCT CASE WHEN '0' IN (@in_pods) THEN 0 ELSE pod_id END AS pod_id
+  , CASE WHEN '0' IN (@in_pods) THEN '(All)' ELSE pod_name END AS pod_name FROM [DS_HSDM_App].[TabRptg].[Dash_BalancedScorecard_HCAHPS_Tiles] 
+where (pod_id IS NOT NULL)
+      AND
+	  (pod_name IS NOT NULL)
+	  AND
+      (
+          '0' IN
+          (
+              SELECT pod_id FROM @tab_pods
+          )
+          OR pod_id IN
+             (
+                 SELECT pod_id FROM @tab_pods
+             )
+      )*/
+order by pod_name;
