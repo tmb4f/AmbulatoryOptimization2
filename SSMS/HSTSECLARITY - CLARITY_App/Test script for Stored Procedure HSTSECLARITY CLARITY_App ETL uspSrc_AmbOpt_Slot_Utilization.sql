@@ -674,13 +674,19 @@ WHERE
 
 SELECT *
 FROM #RptgTable
+WHERE epic_department_id = 10244004
+AND provider_id = '62404'
 --ORDER BY date_dim.DEPARTMENT_ID
 --		,date_dim.PROV_ID
 --		,date_dim.day_date;
-ORDER BY event_date
-        ,event_count DESC
+--ORDER BY event_date
+--        ,event_count DESC
+--		,epic_department_id
+--		,provider_id;
+ORDER BY event_count DESC
 		,epic_department_id
-		,provider_id;
+		,provider_id
+		,event_date;
 
 --SELECT DISTINCT
 --    STAFF_RESOURCE
