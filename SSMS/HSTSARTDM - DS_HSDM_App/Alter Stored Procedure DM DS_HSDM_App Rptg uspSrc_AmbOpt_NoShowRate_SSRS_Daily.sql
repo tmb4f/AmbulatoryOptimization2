@@ -37,18 +37,16 @@ AS
 -------------------------------------------------------------------------------------------------------------------------
 --INFO: 
 --      INPUTS:	DS_HSDM_App.Stage.Scheduled_Appointment
---              DS_HSDW_Prod.Rptg.vwDim_Clrt_SERsrc
---              DS_HSDW_Prod.Rptg.vwDim_Patient
---              DS_HSDW_Prod.Rptg.vwRef_MDM_Location_Master_EpicSvc
---              DS_HSDW_Prod.Rptg.vwRef_MDM_Location_Master
---              DS_HSDW_Prod.Rptg.vwDim_Physcn
---              DS_HSDW_Prod.Rptg.vwRef_Service_Line
---              DS_HSDW_Prod.Rptg.vwDim_Clrt_EMPlye
---              DS_HSDW_Prod.Rptg.vwDim_Clrt_EMPlye
---              DS_HSDM_App.Stage.AmbOpt_Excluded_Department
---              DS_HSDM_App.Rptg.vwRef_Crosswalk_HSEntity_Prov
---              DS_HSDM_App.Rptg.vwRef_SOM_Hierarchy
---              DS_HSDW_Prod.Rptg.vwDim_Date
+--				DS_HSDW_Prod.Rptg.vwDim_Clrt_SERsrc
+--				DS_HSDW_Prod.Rptg.vwDim_Patient
+--				DS_HSDW_Prod.Rptg.vwRef_MDM_Location_Master_EpicSvc
+--				DS_HSDW_Prod.Rptg.vwRef_MDM_Location_Master
+--				DS_HSDW_Prod.Rptg.vwDim_Physcn
+--				DS_HSDW_Prod.Rptg.vwRef_Service_Line
+--				DS_HSDW_Prod.Rptg.vwDim_Clrt_EMPlye
+--				DS_HSDM_App.Stage.AmbOpt_Excluded_Department
+--				DS_HSDW_Prod.Rptg.vwRef_Physcn_Combined
+--				DS_HSDW_Prod.Rptg.vwDim_Date
 --                
 --      OUTPUTS:  [Rptg].[uspSrc_AmbOpt_NoShowRate_SSRS_Daily]
 --
@@ -57,17 +55,11 @@ AS
 --         06/03/2019 - TMB - create stored procedure
 --         06/06/2019 - TMB - remove parameters/arguments logic
 --         06/12/2019 - TMB - edit logic: StartDate and EndDate arguments may not have time values
+--		   07/01/2019 - TMB - change logic for setting SOM hierarchy values: som_division_id (INT) => som_division_name_id (VARCHAR(150))
+--         07/02/2019 - TMB - restore column som_division_id
 --************************************************************************************************************************
 
     SET NOCOUNT ON;
-
-/*
----BDD 6/3/2019 per Tom don't need the defaults here. They will be set in SSRS 
-	----get default Balanced Scorecard date range
-IF @StartDate IS NULL
-   AND @EndDate IS NULL
-   EXEC ETL.usp_Get_Dash_Dates_BalancedScorecard @StartDate OUTPUT, @EndDate OUTPUT;
-*/ 
 
 -------------------------------------------------------------------------------
 DECLARE @locStartDate SMALLDATETIME,
@@ -216,6 +208,7 @@ SELECT
 	   evnts.som_department_id,
 	   evnts.som_department_name,
 	   evnts.som_division_id,
+	   evnts.som_division_name_id,
 	   evnts.som_division_name,
 	   evnts.som_division_5,
 	   evnts.som_hs_area_id,
@@ -428,11 +421,11 @@ FROM
 			main.som_department_id,
 			main.som_department_name,
 			main.som_division_id,
+	        main.som_division_name_id,
 			main.som_division_name,
 			main.som_division_5,
 			main.som_hs_area_id,
 			main.som_hs_area_name,
-
 			main.Load_Dtm
 
         FROM
@@ -509,20 +502,21 @@ FROM
 				   -- Loc
 				   mdmloc.LOC_ID AS rev_location_id,
 				   mdmloc.REV_LOC_NAME AS rev_location,
-				   -- SOM
-         		   uwd.Clrt_Financial_Division AS financial_division_id,
-				   CAST(uwd.Clrt_Financial_Division_Name AS VARCHAR(150)) AS financial_division_name,
-				   uwd.Clrt_Financial_SubDivision AS financial_sub_division_id, 
-				   uwd.Clrt_Financial_SubDivision_Name AS financial_sub_division_name,
-				   uwd.SOM_Group_ID AS som_group_id,
-				   uwd.SOM_group AS som_group_name,
-				   uwd.SOM_department_id AS som_department_id,
-				   uwd.SOM_department AS som_department_name,
-				   uwd.SOM_division_id AS som_division_id,
-				   uwd.SOM_division_name AS som_division_name,
-				   uwd.SOM_division_5 AS som_division_5,
-				   CASE WHEN uwd.SOM_Group_ID IS NULL THEN CAST(NULL AS SMALLINT) ELSE CAST(3 AS SMALLINT) END AS som_hs_area_id,
-				   CASE WHEN uwd.SOM_Group_ID IS NULL THEN CAST(NULL AS VARCHAR(150)) ELSE CAST('School of Medicine' AS VARCHAR(150)) END AS som_hs_area_name,
+				   -- SOM			   
+				   physcn.Clrt_Financial_Division AS financial_division_id,
+				   physcn.Clrt_Financial_Division_Name AS financial_division_name,
+				   physcn.Clrt_Financial_SubDivision AS	financial_sub_division_id,
+				   physcn.Clrt_Financial_SubDivision_Name AS financial_sub_division_name,
+				   physcn.SOM_Group_ID AS som_group_id,
+				   physcn.SOM_group AS som_group_name,
+				   physcn.SOM_department_id AS som_department_id,
+				   physcn.SOM_department AS	som_department_name,
+				   physcn.SOM_division_id AS som_division_id,
+				   physcn.SOM_division_name_id AS som_division_name_id,
+				   physcn.SOM_division_name AS som_division_name,
+				   physcn.SOM_division_5 AS	som_division_5,
+				   physcn.som_hs_area_id AS	som_hs_area_id,
+				   physcn.som_hs_area_name AS som_hs_area_name,
 				   appts.Load_Dtm
 
             FROM Stage.Scheduled_Appointment AS appts
@@ -575,59 +569,8 @@ FROM
                 -- -------------------------------------
                 -- SOM Hierarchy--
                 -- -------------------------------------
-	            LEFT OUTER JOIN
-	            (
-					SELECT DISTINCT
-					    wd.sk_Dim_Physcn,
-						wd.PROV_ID,
-             			wd.Clrt_Financial_Division,
-			    		wd.Clrt_Financial_Division_Name,
-						wd.Clrt_Financial_SubDivision, 
-					    wd.Clrt_Financial_SubDivision_Name,
-					    wd.wd_Dept_Code,
-					    wd.SOM_Group_ID,
-					    wd.SOM_Group,
-						wd.SOM_department_id,
-					    wd.SOM_department,
-						wd.SOM_division_id,
-						wd.SOM_division_name,
-						wd.SOM_division_5
-					FROM
-					(
-					    SELECT
-						    cwlk.sk_Dim_Physcn,
-							cwlk.PROV_ID,
-             			    cwlk.Clrt_Financial_Division,
-			    		    cwlk.Clrt_Financial_Division_Name,
-						    cwlk.Clrt_Financial_SubDivision, 
-							cwlk.Clrt_Financial_SubDivision_Name,
-							cwlk.wd_Dept_Code,
-							som.SOM_Group_ID,
-							som.SOM_Group,
-							som.SOM_department_id,
-							som.SOM_department,
-							som.SOM_division_id,
-							som.SOM_division_name,
-							som.SOM_division_5,
-							ROW_NUMBER() OVER (PARTITION BY cwlk.sk_Dim_Physcn ORDER BY som.som_group_id ASC) AS [SOMSeq]
-						FROM Rptg.vwRef_Crosswalk_HSEntity_Prov AS cwlk
-						    LEFT OUTER JOIN (SELECT DISTINCT
-							                     SOM_Group_ID,
-												 SOM_Group,
-												 SOM_department_id,
-												 SOM_department,
-												 SOM_division_id,
-												 SOM_division_name,
-												 SOM_division_5
-						                     FROM Rptg.vwRef_SOM_Hierarchy
-						                    ) AS som
-						        ON cwlk.wd_Dept_Code = som.SOM_division_5
-					    WHERE cwlk.wd_Is_Primary_Job = 1
-                              AND cwlk.wd_Is_Position_Active = 1
-					) AS wd
-					WHERE wd.SOMSeq = 1
-				) AS uwd
-				    ON uwd.sk_Dim_Physcn = doc.sk_Dim_Physcn
+				LEFT OUTER JOIN DS_HSDW_Prod.Rptg.vwRef_Physcn_Combined physcn
+				    ON physcn.sk_Dim_Physcn = doc.sk_Dim_Physcn
 
             WHERE (appts.APPT_DT >= @locStartDate
               AND appts.APPT_DT < @locEndDate)

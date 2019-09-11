@@ -58,7 +58,8 @@ MODS:
       04/08/2019 - TMB - add BUSINESS_UNIT, Prov_Typ, Staff_Resource, and the new standard portal columns
       05/08/2019 - TMB - add logic for updated/new views Rptg.vwRef_Crosswalk_HSEntity_Prov and Rptg.vwRef_SOM_Hierarchy
       05/10/2019 - TMB - edit logic to resolve issue resulting from multiple primary, active wd jobs for a provider;
-                   add place-holder columns for w_som_hs_area_id (smallint) and w_som_hs_area_name (VARCHAR(150))
+                         add place-holder columns for w_som_hs_area_id (SMALLINT) and w_som_hs_area_name (VARCHAR(150))
+	  07/08/2019 - TMB - change logic for setting SOM hierarchy values; change data type of som_division_id
 **************************************************************************************************************************************************************/
    
     SET NOCOUNT ON; 
@@ -143,9 +144,8 @@ DROP TABLE #RptgTemp
 		   ,pm.som_department_name
 		   ,pm.som_division_id
 		   ,pm.som_division_name
-		   ,pm.som_division_5
-		   ,pm.som_hs_area_id -- SMALLINT
-		   ,pm.som_hs_area_name -- VARCHAR(150)
+		   ,pm.som_hs_area_id
+		   ,pm.som_hs_area_name
 	INTO #RptgTemp
     FROM    DS_HSDW_Prod.Rptg.vwDim_Date AS rec
     LEFT OUTER JOIN
@@ -188,31 +188,26 @@ DROP TABLE #RptgTemp
 				,pat.BirthDate AS BIRTH_DATE
 				,pat.SEX
 				,resp.Load_Dtm
-				--,resp.sk_Dim_Physcn
 				,dp.sk_Dim_Physcn
 				,loc_master.BUSINESS_UNIT
 				,prov.Prov_Typ
 				,prov.Staff_Resource
-
 				,loc_master.LOC_ID AS rev_location_id
 				,loc_master.REV_LOC_NAME AS rev_location
-
-				,uwd.Clrt_Financial_Division AS financial_division_id
-				,CAST(uwd.Clrt_Financial_Division_Name AS VARCHAR(150)) AS financial_division_name
-				,uwd.Clrt_Financial_SubDivision AS financial_sub_division_id
-				,uwd.Clrt_Financial_SubDivision_Name AS financial_sub_division_name
+				   -- SOM
+				,physcn.Clrt_Financial_Division AS financial_division_id
+				,physcn.Clrt_Financial_Division_Name AS financial_division_name
+				,physcn.Clrt_Financial_SubDivision AS	financial_sub_division_id
+				,physcn.Clrt_Financial_SubDivision_Name AS financial_sub_division_name
+				,physcn.SOM_Group_ID AS som_group_id
+				,physcn.SOM_group AS som_group_name
+				,physcn.SOM_department_id AS som_department_id
+				,physcn.SOM_department AS	som_department_name
+				,physcn.SOM_division_5 AS	som_division_id
+				,physcn.SOM_division_name AS som_division_name
+				,physcn.som_hs_area_id AS	som_hs_area_id
+				,physcn.som_hs_area_name AS som_hs_area_name
 				
-				,uwd.SOM_Group_ID AS som_group_id
-				,uwd.SOM_group AS som_group_name
-				,uwd.SOM_department_id AS som_department_id
-				,uwd.SOM_department AS som_department_name
-				,uwd.SOM_division_id AS som_division_id
-				,uwd.SOM_division_name AS som_division_name
-				,uwd.SOM_division_5 AS som_division_5
-				
-				,CAST(NULL AS SMALLINT) AS som_hs_area_id
-				,CAST(NULL AS VARCHAR(150)) AS som_hs_area_name
-
 		FROM    DS_HSDW_Prod.Rptg.vwFact_PressGaney_Responses AS resp
 		INNER JOIN DS_HSDW_Prod.Rptg.vwDim_PG_Question AS qstn
 				ON resp.sk_Dim_PG_Question=qstn.sk_Dim_PG_Question
@@ -237,8 +232,6 @@ DROP TABLE #RptgTemp
 				ON resp.SURVEY_ID = Resp_Age.SURVEY_ID
 		LEFT OUTER JOIN DS_HSDW_Prod.dbo.Dim_Clrt_DEPt dep
 				ON resp.sk_Dim_Clrt_DEPt = dep.sk_Dim_Clrt_DEPt
-		--LEFT OUTER JOIN DS_HSDW_Prod.rptg.vwRef_MDM_location_master loc_master
-		--		ON dep.DEPARTMENT_ID = loc_master.EPIC_DEPARTMENT_ID
         LEFT OUTER JOIN DS_HSDW_Prod.Rptg.vwRef_MDM_Location_Master_EpicSvc AS mdm
                 ON dep.DEPARTMENT_ID = mdm.epic_department_id
         LEFT OUTER JOIN
@@ -262,59 +255,8 @@ DROP TABLE #RptgTemp
                 -- -------------------------------------
                 -- SOM Hierarchy--
                 -- -------------------------------------
-	            LEFT OUTER JOIN
-	            (
-					SELECT DISTINCT
-					    wd.sk_Dim_Physcn,
-						wd.PROV_ID,
-             			wd.Clrt_Financial_Division,
-			    		wd.Clrt_Financial_Division_Name,
-						wd.Clrt_Financial_SubDivision, 
-					    wd.Clrt_Financial_SubDivision_Name,
-					    wd.wd_Dept_Code,
-					    wd.SOM_Group_ID,
-					    wd.SOM_Group,
-						wd.SOM_department_id,
-					    wd.SOM_department,
-						wd.SOM_division_id,
-						wd.SOM_division_name,
-						wd.SOM_division_5
-					FROM
-					(
-					    SELECT
-						    cwlk.sk_Dim_Physcn,
-							cwlk.PROV_ID,
-             			    cwlk.Clrt_Financial_Division,
-			    		    cwlk.Clrt_Financial_Division_Name,
-						    cwlk.Clrt_Financial_SubDivision, 
-							cwlk.Clrt_Financial_SubDivision_Name,
-							cwlk.wd_Dept_Code,
-							som.SOM_Group_ID,
-							som.SOM_Group,
-							som.SOM_department_id,
-							som.SOM_department,
-							som.SOM_division_id,
-							som.SOM_division_name,
-							som.SOM_division_5,
-							ROW_NUMBER() OVER (PARTITION BY cwlk.sk_Dim_Physcn ORDER BY som.som_group_id ASC) AS [SOMSeq]
-						FROM Rptg.vwRef_Crosswalk_HSEntity_Prov AS cwlk
-						    LEFT OUTER JOIN (SELECT DISTINCT
-							                     SOM_Group_ID,
-												 SOM_Group,
-												 SOM_department_id,
-												 SOM_department,
-												 SOM_division_id,
-												 SOM_division_name,
-												 SOM_division_5
-						                     FROM Rptg.vwRef_SOM_Hierarchy
-						                    ) AS som
-						        ON cwlk.wd_Dept_Code = som.SOM_division_5
-					    WHERE cwlk.wd_Is_Primary_Job = 1
-                              AND cwlk.wd_Is_Position_Active = 1
-					) AS wd
-					WHERE wd.SOMSeq = 1
-				) AS uwd
-				    ON uwd.sk_Dim_Physcn = dp.sk_Dim_Physcn
+				LEFT OUTER JOIN DS_HSDW_Prod.Rptg.vwRef_Physcn_Combined physcn
+				    ON physcn.sk_Dim_Physcn = dp.sk_Dim_Physcn
 		WHERE   resp.Svc_Cde='MD' AND resp.sk_Dim_PG_Question IN ('805') -- Would you recommend this provider's office to your family and friends?
 				AND resp.RECDATE>=@locstartdate
 				AND resp.RECDATE<@locenddate

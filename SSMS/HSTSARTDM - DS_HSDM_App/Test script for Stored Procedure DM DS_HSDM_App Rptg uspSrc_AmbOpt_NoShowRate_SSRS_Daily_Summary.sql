@@ -326,79 +326,227 @@ FROM @SOMDepartment
 
 --SELECT @in_somdeps
 
-DECLARE @SOMDivision TABLE (SOMDivisionId VARCHAR(100))
+DECLARE @SOMDivision TABLE (SOMDivisionId int)
 
 INSERT INTO @SOMDivision
 (
     SOMDivisionId
 )
 VALUES
-('0')--,--(All)
---('60'),--MD-INMD Allergy
---('66'),--MD-INMD CV Medicine
---('68'),--MD-INMD Endocrinology
---('72'),--MD-INMD Gastroenterology
---('80'),--MD-INMD Hem/Onc
---('76'),--MD-INMD Hospital Medicine
---('84'),--MD-INMD Infectious Dis
---('86'),--MD-INMD Nephrology
---('88'),--MD-INMD Pulmonary
---('90'),--MD-INMD Rheumatology
---('99'),--MD-NERS Admin
---('109'),--MD-NERS CV Disease
---('111'),--MD-NERS Deg Spinal Dis
---('113'),--MD-NERS Gamma Knife
---('119'),--MD-NERS Multiple Neuralgia
---('121'),--MD-NERS Neuro-Onc
---('127'),--MD-NERS Pediatric Pituitary
---('129'),--MD-NERS Radiosurgery
---('142'),--MD-OBGY Gyn Oncology
---('154'),--MD-OBGY Gyn Specialties
---('144'),--MD-OBGY Maternal Fetal Med
---('148'),--MD-OBGY Midlife Health
---('150'),--MD-OBGY Northridge
---('140'),--MD-OBGY Ob & Gyn, Admin
---('146'),--MD-OBGY Reprod Endo/Infertility
---('166'),--MD-ORTP Adult Reconst
---('176'),--MD-ORTP Foot/Ankle
---('190'),--MD-ORTP Hand Surgery
---('164'),--MD-ORTP Ortho Surg, Admin
---('182'),--MD-ORTP Pediatric Ortho
---('186'),--MD-ORTP Spine
---('188'),--MD-ORTP Sports Med
---('192'),--MD-ORTP Trauma
---('195'),--MD-OTLY Oto, Admin
---('30'),--MD-PBHS Public Health Sciences Admin
---('235'),--MD-PEDT Adolescent Medicine
---('221'),--MD-PEDT Cardiology
---('223'),--MD-PEDT Critical Care
---('225'),--MD-PEDT Developmental
---('227'),--MD-PEDT Endocrinology
---('237'),--MD-PEDT Gastroenterology
---('239'),--MD-PEDT General Pediatrics
---('241'),--MD-PEDT Genetics
---('243'),--MD-PEDT Hematology
---('247'),--MD-PEDT Infectious Diseases
---('249'),--MD-PEDT Neonatology
---('251'),--MD-PEDT Nephrology
---('217'),--MD-PEDT Pediatrics, Admin
---('255'),--MD-PEDT Pulmonary
---('262'),--MD-PSCH Psychiatry and NB Sciences
---('272'),--MD-RADL Angio/Interv
---('276'),--MD-RADL Breast Imaging
---('282'),--MD-RADL Neuroradiology
---('274'),--MD-RADL Non-Invasive Cardio
---('284'),--MD-RADL Nuclear Medicine
---('268'),--MD-RADL Radiology, Admin
---('278'),--MD-RADL Thoracoabdominal
---('293'),--MD-SURG Surgery, Admin
---('310')--,--MD-UROL Urology, General
---('80'),--MD-INMD Hem/Onc
---('76')--,--MD-INMD Hospital Medicine
+(0)--,--(All)
+--(14),--40445 MD-MICR Microbiology
+--(22),--40450 MD-MPHY Mole Phys & Biophysics
+--(30),--40415 MD-PBHS Public Health Sciences Admin
+--(48),--40700 MD-ANES Anesthesiology
+--(50),--40705 MD-DENT Dentistry
+--(52),--40710 MD-DERM Dermatology
+--(54),--40715 MD-EMED Emergency Medicine
+--(56),--40720 MD-FMED Family Medicine
+--(58),--40725 MD-INMD Int Med, Admin
+--(60),--40730 MD-INMD Allergy
+--(66),--40735 MD-INMD CV Medicine
+--(68),--40745 MD-INMD Endocrinology
+--(72),--40755 MD-INMD Gastroenterology
+--(74),--40760 MD-INMD Gen, Geri, Pall, Hosp
+--(76),--40761 MD-INMD Hospital Medicine
+--(80),--40770 MD-INMD Hem/Onc
+--(82),--40771 MD-INMD Community Oncology
+--(84),--40775 MD-INMD Infectious Dis
+--(86),--40780 MD-INMD Nephrology
+--(88),--40785 MD-INMD Pulmonary
+--(90),--40790 MD-INMD Rheumatology
+--(98),--40746 MD-INMD Advanced Diabetes Mgt
+--(101),--40800 MD-NERS Admin
+--(111),--40820 MD-NERS CV Disease
+--(113),--40830 MD-NERS Deg Spinal Dis
+--(115),--40835 MD-NERS Gamma Knife
+--(119),--40816 MD-NERS Minimally Invasive Spine
+--(121),--40840 MD-NERS Multiple Neuralgia
+--(123),--40825 MD-NERS Neuro-Onc
+--(127),--40810 MD-NERS Pediatric
+--(129),--40849 MD-NERS Pediatric Pituitary
+--(131),--40806 MD-NERS Radiosurgery
+--(138),--40850 MD-NEUR Neurology
+--(142),--40860 MD-OBGY Ob & Gyn, Admin
+--(144),--40865 MD-OBGY Gyn Oncology
+--(146),--40870 MD-OBGY Maternal Fetal Med
+--(148),--40875 MD-OBGY Reprod Endo/Infertility
+--(150),--40880 MD-OBGY Midlife Health
+--(152),--40885 MD-OBGY Northridge
+--(154),--40890 MD-OBGY Primary Care Center
+--(156),--40895 MD-OBGY Gyn Specialties
+--(158),--40897 MD-OBGY Midwifery
+--(163),--40900 MD-OPHT Ophthalmology
+--(166),--40910 MD-ORTP Ortho Surg, Admin
+--(168),--40915 MD-ORTP Adult Reconst
+--(178),--40930 MD-ORTP Foot/Ankle
+--(184),--40940 MD-ORTP Pediatric Ortho
+--(188),--40950 MD-ORTP Spine
+--(190),--40955 MD-ORTP Sports Med
+--(192),--40960 MD-ORTP Hand Surgery
+--(194),--40961 MD-ORTP Trauma
+--(197),--40970 MD-OTLY Oto, Admin
+--(201),--40980 MD-OTLY Audiology
+--(208),--41005 MD-PATH Surgical Path
+--(210),--41010 MD-PATH Clinical Pathology
+--(212),--41015 MD-PATH Neuropathology
+--(214),--41017 MD-PATH Research
+--(219),--41025 MD-PEDT Pediatrics, Admin
+--(223),--41035 MD-PEDT Cardiology
+--(225),--41040 MD-PEDT Critical Care
+--(227),--41045 MD-PEDT Developmental
+--(229),--41050 MD-PEDT Endocrinology
+--(233),--41056 MD-PEDT Bariatrics
+--(237),--41058 MD-PEDT Adolescent Medicine
+--(239),--41060 MD-PEDT Gastroenterology
+--(241),--41065 MD-PEDT General Pediatrics
+--(243),--41070 MD-PEDT Genetics
+--(245),--41075 MD-PEDT Hematology
+--(249),--41085 MD-PEDT Infectious Diseases
+--(251),--41090 MD-PEDT Neonatology
+--(253),--41095 MD-PEDT Nephrology
+--(257),--41105 MD-PEDT Pulmonary
+--(260),--41130 MD-PHMR Phys Med & Rehab
+--(262),--41140 MD-PLSR Plastic Surgery
+--(264),--41120 MD-PSCH Psychiatry and NB Sciences
+--(270),--41160 MD-RADL Radiology, Admin
+--(272),--41161 MD-RADL Community Division
+--(274),--41165 MD-RADL Angio/Interv
+--(276),--41166 MD-RADL Non-Invasive Cardio
+--(278),--41170 MD-RADL Breast Imaging
+--(280),--41175 MD-RADL Thoracoabdominal
+--(282),--41180 MD-RADL Musculoskeletal
+--(284),--41185 MD-RADL Neuroradiology
+--(286),--41186 MD-RADL Interventional Neuroradiology (INR)
+--(288),--41190 MD-RADL Nuclear Medicine
+--(290),--41195 MD-RADL Pediatric Rad
+--(295),--41150 MD-RONC Radiation Oncology
+--(297),--41210 MD-SURG Surgery, Admin
+--(310),--41250 MD-UROL Urology, Admin
+--(314),--41255 MD-UROL Urology, General
+--(327),--40480 MD-CDBT Ctr for Diabetes Tech
+--(331),--40530 MD-CPHG Ctr for Public Health Genomics
+--(373),--40204 MD-DMED School of Medicine Adm
+--(435),--40230 MD-DMED Curriculum
+--(435),--40250 MD-DMED Clin Performance Dev
+--(435),--40265 MD-DMED Med Ed Chief of Staff
 ;
+
+/*
+DECLARE @SOMDivisionName TABLE (SOMDivisionNameId VARCHAR(150))
+
+INSERT INTO @SOMDivisionName
+(
+    SOMDivisionNameId
+)
+VALUES
+('0')--,--(All)
+--('40204 MD-DMED School of Medicine Adm'),--Administration
+--('40230 MD-DMED Curriculum'),--Undergraduate Medical Education
+--('40250 MD-DMED Clin Performance Dev'),--Undergraduate Medical Education
+--('40265 MD-DMED Med Ed Chief of Staff'),--Undergraduate Medical Education
+--('40415 MD-PBHS Public Health Sciences Admin'),--MD-PBHS Public Health Sciences Admin
+--('40445 MD-MICR Microbiology'),--40445 MD-MICR Microbiology
+--('40450 MD-MPHY Mole Phys & Biophysics'),--40450 MD-MPHY Mole Phys & Biophysics
+--('40480 MD-CDBT Ctr for Diabetes Tech'),--40480 MD-CDBT Ctr for Diabetes Tech
+--('40530 MD-CPHG Ctr for Public Health Genomics'),--40530 MD-CPHG Ctr for Public Health Genomics
+--('40700 MD-ANES Anesthesiology'),--40700 MD-ANES Anesthesiology
+--('40705 MD-DENT Dentistry'),--40705 MD-DENT Dentistry
+--('40710 MD-DERM Dermatology'),--40710 MD-DERM Dermatology
+--('40715 MD-EMED Emergency Medicine'),--40715 MD-EMED Emergency Medicine
+--('40720 MD-FMED Family Medicine'),--40720 MD-FMED Family Medicine
+--('40725 MD-INMD Int Med, Admin'),--MD-INMD Int Med, Admin
+--('40730 MD-INMD Allergy'),--MD-INMD Allergy
+--('40735 MD-INMD CV Medicine'),--MD-INMD CV Medicine
+--('40745 MD-INMD Endocrinology'),--MD-INMD Endocrinology
+--('40746 MD-INMD Advanced Diabetes Mgt'),--MD-INMD Advanced Diabetes Mgt
+--('40755 MD-INMD Gastroenterology'),--MD-INMD Gastroenterology
+--('40760 MD-INMD Gen, Geri, Pall, Hosp'),--MD-INMD General Med
+--('40761 MD-INMD Hospital Medicine'),--MD-INMD Hospital Medicine
+--('40770 MD-INMD Hem/Onc'),--MD-INMD Hem/Onc
+--('40771 MD-INMD Community Oncology'),--MD-INMD Community Oncology
+--('40775 MD-INMD Infectious Dis'),--MD-INMD Infectious Dis
+--('40780 MD-INMD Nephrology'),--MD-INMD Nephrology
+--('40785 MD-INMD Pulmonary'),--MD-INMD Pulmonary
+--('40790 MD-INMD Rheumatology'),--MD-INMD Rheumatology
+--('40800 MD-NERS Admin'),--MD-NERS Admin
+--('40806 MD-NERS Radiosurgery'),--MD-NERS Radiosurgery
+--('40810 MD-NERS Pediatric'),--MD-NERS Pediatric
+--('40816 MD-NERS Minimally Invasive Spine'),--MD-NERS Minimally Invasive Spine
+--('40820 MD-NERS CV Disease'),--MD-NERS CV Disease
+--('40825 MD-NERS Neuro-Onc'),--MD-NERS Neuro-Onc
+--('40830 MD-NERS Deg Spinal Dis'),--MD-NERS Deg Spinal Dis
+--('40835 MD-NERS Gamma Knife'),--MD-NERS Gamma Knife
+--('40840 MD-NERS Multiple Neuralgia'),--MD-NERS Multiple Neuralgia
+--('40849 MD-NERS Pediatric Pituitary'),--MD-NERS Pediatric Pituitary
+--('40850 MD-NEUR Neurology'),--40850 MD-NEUR Neurology
+--('40860 MD-OBGY Ob & Gyn, Admin'),--MD-OBGY Ob & Gyn, Admin
+--('40865 MD-OBGY Gyn Oncology'),--MD-OBGY Gyn Oncology
+--('40870 MD-OBGY Maternal Fetal Med'),--MD-OBGY Maternal Fetal Med
+--('40875 MD-OBGY Reprod Endo/Infertility'),--MD-OBGY Reprod Endo/Infertility
+--('40880 MD-OBGY Midlife Health'),--MD-OBGY Midlife Health
+--('40885 MD-OBGY Northridge'),--MD-OBGY Northridge
+--('40890 MD-OBGY Primary Care Center'),--MD-OBGY Primary Care Center
+--('40895 MD-OBGY Gyn Specialties'),--MD-OBGY Gyn Specialties
+--('40897 MD-OBGY Midwifery'),--MD-OBGY Midwifery
+--('40900 MD-OPHT Ophthalmology'),--40900 MD-OPHT Ophthalmology
+--('40910 MD-ORTP Ortho Surg, Admin'),--MD-ORTP Ortho Surg, Admin
+--('40915 MD-ORTP Adult Reconst'),--MD-ORTP Adult Reconst
+--('40930 MD-ORTP Foot/Ankle'),--MD-ORTP Foot/Ankle
+--('40940 MD-ORTP Pediatric Ortho'),--MD-ORTP Pediatric Ortho
+--('40950 MD-ORTP Spine'),--MD-ORTP Spine
+--('40955 MD-ORTP Sports Med'),--MD-ORTP Sports Med
+--('40960 MD-ORTP Hand Surgery'),--MD-ORTP Hand Surgery
+--('40961 MD-ORTP Trauma'),--MD-ORTP Trauma
+--('40970 MD-OTLY Oto, Admin'),--MD-OTLY Oto, Admin
+--('40980 MD-OTLY Audiology'),--MD-OTLY Audiology
+--('41005 MD-PATH Surgical Path'),--MD-PATH Surgical Path
+--('41010 MD-PATH Clinical Pathology'),--MD-PATH Clinical Pathology
+--('41015 MD-PATH Neuropathology'),--MD-PATH Neuropathology
+--('41017 MD-PATH Research'),--MD-PATH Research
+--('41025 MD-PEDT Pediatrics, Admin'),--MD-PEDT Pediatrics, Admin
+--('41035 MD-PEDT Cardiology'),--MD-PEDT Cardiology
+--('41040 MD-PEDT Critical Care'),--MD-PEDT Critical Care
+--('41045 MD-PEDT Developmental'),--MD-PEDT Developmental
+--('41050 MD-PEDT Endocrinology'),--MD-PEDT Endocrinology
+--('41056 MD-PEDT Bariatrics'),--MD-PEDT Bariatrics
+--('41058 MD-PEDT Adolescent Medicine'),--MD-PEDT Adolescent Medicine
+--('41060 MD-PEDT Gastroenterology'),--MD-PEDT Gastroenterology
+--('41065 MD-PEDT General Pediatrics'),--MD-PEDT General Pediatrics
+--('41070 MD-PEDT Genetics'),--MD-PEDT Genetics
+--('41075 MD-PEDT Hematology'),--MD-PEDT Hematology
+--('41085 MD-PEDT Infectious Diseases'),--MD-PEDT Infectious Diseases
+--('41090 MD-PEDT Neonatology'),--MD-PEDT Neonatology
+--('41095 MD-PEDT Nephrology'),--MD-PEDT Nephrology
+--('41105 MD-PEDT Pulmonary'),--MD-PEDT Pulmonary
+--('41120 MD-PSCH Psychiatry and NB Sciences'),--MD-PSCH Psychiatry and NB Sciences
+--('41130 MD-PHMR Phys Med & Rehab'),--41130 MD-PHMR Phys Med & Rehab
+--('41140 MD-PLSR Plastic Surgery'),--41140 MD-PLSR Plastic Surgery
+--('41150 MD-RONC Radiation Oncology'),--41150 MD-RONC Radiation Oncology
+--('41160 MD-RADL Radiology, Admin'),--MD-RADL Radiology, Admin
+--('41161 MD-RADL Community Division'),--MD-RADL Community Division
+--('41165 MD-RADL Angio/Interv'),--MD-RADL Angio/Interv
+--('41166 MD-RADL Non-Invasive Cardio'),--MD-RADL Non-Invasive Cardio
+--('41170 MD-RADL Breast Imaging'),--MD-RADL Breast Imaging
+--('41175 MD-RADL Thoracoabdominal'),--MD-RADL Thoracoabdominal
+--('41180 MD-RADL Musculoskeletal'),--MD-RADL Musculoskeletal
+--('41185 MD-RADL Neuroradiology'),--MD-RADL Neuroradiology
+--('41186 MD-RADL Interventional Neuroradiology (INR)'),--MD-RADL Interventional Neuroradiology (INR)
+--('41190 MD-RADL Nuclear Medicine'),--MD-RADL Nuclear Medicine
+--('41195 MD-RADL Pediatric Rad'),--MD-RADL Pediatric Rad
+--('41210 MD-SURG Surgery, Admin'),--MD-SURG Surgery, Admin
+--('41250 MD-UROL Urology, Admin'),--MD-UROL Urology, Admin
+--('41255 MD-UROL Urology, General'),--MD-UROL Urology, General
+;
+*/
 
 SELECT @in_somdivs = COALESCE(@in_somdivs+',' ,'') + CAST(SOMDivisionId AS VARCHAR(MAX))
 FROM @SOMDivision
+
+/*
+SELECT @in_somdivs = COALESCE(@in_somdivs+',' ,'') + CAST(SOMDivisionNameId AS VARCHAR(MAX))
+FROM @SOMDivisionName
+*/
 
 --SELECT @in_somdivs
 
@@ -432,18 +580,16 @@ FROM @SOMDivision
 -------------------------------------------------------------------------------------------------------------------------
 --INFO: 
 --      INPUTS:	DS_HSDM_App.Stage.Scheduled_Appointment
---              DS_HSDW_Prod.Rptg.vwDim_Clrt_SERsrc
---              DS_HSDW_Prod.Rptg.vwDim_Patient
---              DS_HSDW_Prod.Rptg.vwRef_MDM_Location_Master_EpicSvc
---              DS_HSDW_Prod.Rptg.vwRef_MDM_Location_Master
---              DS_HSDW_Prod.Rptg.vwDim_Physcn
---              DS_HSDW_Prod.Rptg.vwRef_Service_Line
---              DS_HSDW_Prod.Rptg.vwDim_Clrt_EMPlye
---              DS_HSDW_Prod.Rptg.vwDim_Clrt_EMPlye
---              DS_HSDM_App.Stage.AmbOpt_Excluded_Department
---              DS_HSDM_App.Rptg.vwRef_Crosswalk_HSEntity_Prov
---              DS_HSDM_App.Rptg.vwRef_SOM_Hierarchy
---              DS_HSDW_Prod.Rptg.vwDim_Date
+--				DS_HSDW_Prod.Rptg.vwDim_Clrt_SERsrc
+--				DS_HSDW_Prod.Rptg.vwDim_Patient
+--				DS_HSDW_Prod.Rptg.vwRef_MDM_Location_Master_EpicSvc
+--				DS_HSDW_Prod.Rptg.vwRef_MDM_Location_Master
+--				DS_HSDW_Prod.Rptg.vwDim_Physcn
+--				DS_HSDW_Prod.Rptg.vwRef_Service_Line
+--				DS_HSDW_Prod.Rptg.vwDim_Clrt_EMPlye
+--				DS_HSDM_App.Stage.AmbOpt_Excluded_Department
+--				DS_HSDW_Prod.Rptg.vwRef_Physcn_Combined
+--				DS_HSDW_Prod.Rptg.vwDim_Date
 --                
 --      OUTPUTS:  [Rptg].[uspSrc_AmbOpt_NoShowRate_SSRS_Daily_Summary]
 --
@@ -451,6 +597,7 @@ FROM @SOMDivision
 --MODS: 	
 --         06/07/2019 - TMB - create stored procedure
 --         06/12/2019 - TMB - edit logic: StartDate and EndDate arguments may not have time values
+--		   07/01/2019 - TMB - change logic for setting SOM hierarchy values
 --************************************************************************************************************************
 
     SET NOCOUNT ON;
@@ -500,6 +647,16 @@ INSERT INTO @tab_somdeps
 )
 SELECT Param
 FROM ETL.fn_ParmParse(@in_somdeps, ',');
+--DECLARE @tab_somdivs TABLE
+--(
+--    som_division_name_id VARCHAR(150)
+--);
+--INSERT INTO @tab_somdivs
+--(
+--    som_division_name_id
+--)
+--SELECT Param
+--FROM ETL.fn_ParmParse(@in_somdivs, ',');
 DECLARE @tab_somdivs TABLE
 (
     som_division_id int
@@ -580,7 +737,8 @@ FROM
                     CAST(NULL AS INT)
             END AS Cancel_Lead_Days,
 			main.som_department_id,
-			main.som_division_id
+			main.som_division_id,
+	        main.som_division_name
 
         FROM
         ( --main
@@ -598,8 +756,9 @@ FROM
                    appts.PAT_ENC_CSN_ID,
                    appts.APPT_CANC_DTTM,
 				   -- SOM
-                   uwd.SOM_department_id AS som_department_id,
-				   uwd.SOM_division_id AS som_division_id
+				   physcn.SOM_department_id AS som_department_id,
+				   physcn.SOM_division_id AS som_division_id,
+				   physcn.SOM_division_name AS som_division_name
 
             FROM Stage.Scheduled_Appointment AS appts
                 LEFT OUTER JOIN DS_HSDW_Prod.Rptg.vwDim_Clrt_SERsrc ser
@@ -651,59 +810,8 @@ FROM
                 -- -------------------------------------
                 -- SOM Hierarchy--
                 -- -------------------------------------
-	            LEFT OUTER JOIN
-	            (
-					SELECT DISTINCT
-					    wd.sk_Dim_Physcn,
-						wd.PROV_ID,
-             			wd.Clrt_Financial_Division,
-			    		wd.Clrt_Financial_Division_Name,
-						wd.Clrt_Financial_SubDivision, 
-					    wd.Clrt_Financial_SubDivision_Name,
-					    wd.wd_Dept_Code,
-					    wd.SOM_Group_ID,
-					    wd.SOM_Group,
-						wd.SOM_department_id,
-					    wd.SOM_department,
-						wd.SOM_division_id,
-						wd.SOM_division_name,
-						wd.SOM_division_5
-					FROM
-					(
-					    SELECT
-						    cwlk.sk_Dim_Physcn,
-							cwlk.PROV_ID,
-             			    cwlk.Clrt_Financial_Division,
-			    		    cwlk.Clrt_Financial_Division_Name,
-						    cwlk.Clrt_Financial_SubDivision, 
-							cwlk.Clrt_Financial_SubDivision_Name,
-							cwlk.wd_Dept_Code,
-							som.SOM_Group_ID,
-							som.SOM_Group,
-							som.SOM_department_id,
-							som.SOM_department,
-							som.SOM_division_id,
-							som.SOM_division_name,
-							som.SOM_division_5,
-							ROW_NUMBER() OVER (PARTITION BY cwlk.sk_Dim_Physcn ORDER BY som.som_group_id ASC) AS [SOMSeq]
-						FROM Rptg.vwRef_Crosswalk_HSEntity_Prov AS cwlk
-						    LEFT OUTER JOIN (SELECT DISTINCT
-							                     SOM_Group_ID,
-												 SOM_Group,
-												 SOM_department_id,
-												 SOM_department,
-												 SOM_division_id,
-												 SOM_division_name,
-												 SOM_division_5
-						                     FROM Rptg.vwRef_SOM_Hierarchy
-						                    ) AS som
-						        ON cwlk.wd_Dept_Code = som.SOM_division_5
-					    WHERE cwlk.wd_Is_Primary_Job = 1
-                              AND cwlk.wd_Is_Position_Active = 1
-					) AS wd
-					WHERE wd.SOMSeq = 1
-				) AS uwd
-				    ON uwd.sk_Dim_Physcn = doc.sk_Dim_Physcn
+				LEFT OUTER JOIN DS_HSDW_Prod.Rptg.vwRef_Physcn_Combined physcn
+				    ON physcn.sk_Dim_Physcn = doc.sk_Dim_Physcn
 
             WHERE (appts.APPT_DT >= @locStartDate
               AND appts.APPT_DT < @locEndDate)

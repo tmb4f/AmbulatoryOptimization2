@@ -1,0 +1,47 @@
+,('Anesthesiologist') -- Person
+,('Audiologist') -- Person
+,('Case Manager') -- Person
+,('Clinical Social Worker') -- Person
+,('Community Provider') -- Person
+,('Counselor') -- Person
+,('Dentist') -- Person
+,('Doctor of Philosophy') -- Person
+,('Fellow') -- Person
+,('Financial Counselor') -- Person
+,('Genetic Counselor') -- Person
+,('Health Educator') -- Person
+,('Hygienist') -- Person
+,('Licensed Clinical Social Worker') -- Person
+,('Licensed Nurse') -- Person
+,('Medical Assistant') -- Person
+,('Medical Student') -- Person
+,('Nurse Practitioner') -- Person
+,('Occupational Therapist') -- Person
+,('Optometrist') -- Person
+,('P&O Practitioner') -- Person
+,('Pharmacist') -- Person
+,('Physical Therapist') -- Person
+,('Physical Therapy Assistant') -- Person
+,('Physician') -- Person
+,('Physician Assistant') -- Person
+,('Psychiatrist') -- Person
+,('Psychologist') -- Person
+,('RD Intern') -- Person
+,('Registered Dietitian') -- Person
+,('Registered Nurse') -- Person
+,('Resident') -- Person
+,('Scribe') -- Person
+,('Speech and Language Pathologist') -- Person
+,('Technician') -- Person
+,('Unknown') -- Person
+,('Nutritionist') -- Resource
+,('Pharmacist') -- Resource
+,('Registered Dietitian') -- Resource
+,('Registered Nurse') -- Resource
+,('Resident') -- Resource
+,('Resource') -- Resource
+,('Social Worker') -- Resource
+,('Unknown') -- Resource
+,('Financial Counselor') -- Unknown
+,('Nutritionist') -- Unknown
+,('

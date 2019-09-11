@@ -7,56 +7,13 @@ GO
 SET QUOTED_IDENTIFIER ON
 GO
 
-DECLARE @StartDate SMALLDATETIME,
-        @EndDate SMALLDATETIME,
-	    @in_somdeps VARCHAR(MAX)
-
---SET @StartDate = NULL
---SET @EndDate = NULL
---SET @StartDate = '2/3/2019 00:00 AM'
---SET @EndDate = '2/9/2019 11:59 PM'
---SET @StartDate = '5/27/2019 00:00 AM'
---SET @EndDate = '6/3/2019 11:59 PM'
-SET @StartDate = '7/1/2018 00:00 AM'
-SET @EndDate = '6/30/2019 00:00 AM'
-
-DECLARE @SOMDepartment TABLE (SOMDepartmentId VARCHAR(100))
-
-INSERT INTO @SOMDepartment
-(
-    SOMDepartmentId
-)
-VALUES
---('0'),--(All)
---('57'),--MD-INMD Internal Medicine
---('98'),--MD-NERS Neurological Surgery
---('139'),--MD-OBGY Ob & Gyn
---('163'),--MD-ORTP Orthopaedic Surgery
---('194'),--MD-OTLY Otolaryngology
---('29'),--MD-PBHS Public Health Sciences
---('214'),--MD-PEDT Pediatrics
---('261'),--MD-PSCH Psychiatric Medicine
---('267'),--MD-RADL Radiology
---('292'),--MD-SURG Surgery
---('305'),--MD-UROL Urology
---('0') --(All)
-('57')--,--MD-INMD Internal Medicine
---('292')--,--MD-SURG Surgery
---('47')--,--MD-ANES Anesthesiology
-;
-
-SELECT @in_somdeps = COALESCE(@in_somdeps+',' ,'') + CAST(SOMDepartmentId AS VARCHAR(MAX))
-FROM @SOMDepartment
-
---SELECT @in_somdeps
-
---ALTER PROCEDURE [Rptg].[uspSrc_AmbOpt_SOMDivision]
---    (
---     @StartDate SMALLDATETIME = NULL,
---     @EndDate SMALLDATETIME = NULL,
---     @in_somdeps VARCHAR(MAX)
---    )
---AS  
+ALTER PROCEDURE [Rptg].[uspSrc_AmbOpt_SOMDivision]
+    (
+     @StartDate SMALLDATETIME = NULL,
+     @EndDate SMALLDATETIME = NULL,
+     @in_somdeps VARCHAR(MAX)
+    )
+AS  
 --/**********************************************************************************************************************
 --WHAT: Create procedure Rptg.uspSrc_AmbOpt_SOMDivision
 --WHO : Tom Burgan

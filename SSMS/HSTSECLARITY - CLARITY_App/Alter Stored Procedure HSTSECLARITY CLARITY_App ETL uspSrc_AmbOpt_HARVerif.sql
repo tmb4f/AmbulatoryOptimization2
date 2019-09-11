@@ -25,36 +25,36 @@ AS
 --INFO: 
 --      INPUTS:
 --              CLARITY_App.dbo.Dim_Date
---				CLARITY.dbo.PAT_ENC					
---				CLARITY.dbo.HSP_ACCOUNT_3					
+--				CLARITY.dbo.PAT_ENC
+--				CLARITY.dbo.HSP_ACCOUNT_3
 --				CLARITY.dbo.HSP_ACCOUNT
---              CLARITY.dbo.F_SCHED_APPT
---              CLARITY.dbo.ZC_CANCEL_REASON
+--				CLARITY.dbo.F_SCHED_APPT
+--				CLARITY.dbo.ZC_CANCEL_REASON
 --				CLARITY.dbo.CLARITY_DEP
---              CLARITY.dbo.ZC_DEP_RPT_GRP_6
---              CLARITY.dbo.ZC_DEP_RPT_GRP_7						
+--				CLARITY.dbo.ZC_DEP_RPT_GRP_6
+--				CLARITY.dbo.ZC_DEP_RPT_GRP_7
 --				CLARITY.dbo.PATIENT
---              CLARITY.dbo.COVERAGE			
+--				CLARITY.dbo.COVERAGE
 --				CLARITY.dbo.PATIENT_MYC
 --				CLARITY.dbo.CLARITY_SER
 --				CLARITY.dbo.IDENTITY_ID
---              CLARITY.dbo.IDENTITY_SER_ID
+--				CLARITY.dbo.IDENTITY_SER_ID
 --				CLARITY.dbo.ZC_MYCHART_STATUS
---              CLARITY.dbo.ZC_SEX
---              CLARITY.dbo.VERIFICATION
---              CLARITY.dbo.COVERAGE_MEM_LIST
---              CLARITY.dbo.VERIF_STATUS_HX
---              CLARITY_App.Rptg.vwRef_MDM_Location_Master
---              CLARITY.dbo.CLARITY_EPP
---              CLARITY.dbo.CLARITY_EPM
+--				CLARITY.dbo.ZC_SEX
+--				CLARITY.dbo.VERIFICATION
+--				CLARITY.dbo.COVERAGE_MEM_LIST
+--				CLARITY.dbo.VERIF_STATUS_HX
+--				CLARITY_App.Rptg.vwRef_MDM_Location_Master
+--				CLARITY.dbo.CLARITY_EPP
+--				CLARITY.dbo.CLARITY_EPM
 --				CLARITY.dbo.CLARITY_EPP_2
---              CLARITY.dbo.CLARITY_EPM_2
---              CLARITY.dbo.CLARITY_EMP
---              CLARITY.dbo.ZC_GUAR_VERIF_STAT
+--				CLARITY.dbo.CLARITY_EPM_2
+--				CLARITY.dbo.CLARITY_EMP
+--				CLARITY.dbo.ZC_GUAR_VERIF_STAT
 --				CLARITY_App.dbo.Dim_Physcn
---              CLARITY_App.Rptg.Big6_Transplant_Datamart
---              CLARITY_App.Stage.AmbOpt_Excluded_Department
---              CLARITY_App.Rptg.vwRef_Crosswalk_HSEntity_Prov
+--				CLARITY_App.Rptg.Big6_Transplant_Datamart
+--				CLARITY_App.Stage.AmbOpt_Excluded_Department
+--				CLARITY_App.Rptg.vwRef_Physcn_Combined
 --                
 --      OUTPUTS:  [ETL].[uspSrc_AmbOpt_HARVerif]
 --					
@@ -94,6 +94,7 @@ AS
 --         04/09/2019 - TMB     -- add columns STAFF_RESOURCE_C, STAFF_RESOURCE, PROVIDER_TYPE_C, PROV_TYPE, BUSINESS_UNIT
 --         05/10/2019 - TMB     -- add logic for updated/new views Rptg.vwRef_Crosswalk_HSEntity_Prov and Rptg.vwRef_SOM_Hierarchy;
 --                                 add columns for som_hs_area_id (SMALLINT) and som_hs_area_name (VARCHAR(150))
+--         07/19/2019 - TMB     -- change logic for setting SOM hierarchy values 
 --************************************************************************************************************************
 
 SET NOCOUNT ON;
@@ -231,10 +232,14 @@ SELECT DISTINCT
                    ,mdm.epic_department_id
                    ,mdm.EPIC_DEPT_NAME AS epic_department_name
                    ,mdm.EPIC_EXT_NAME  AS epic_department_name_external
-                   ,CAST(dep.RPT_GRP_SIX AS VARCHAR(55))                                                                     AS pod_id
-                   ,CAST(pod.NAME AS VARCHAR(100))                                                                           AS pod_name         -- pod
-                   ,CAST(dep.RPT_GRP_SEVEN AS VARCHAR(55))                                                                   AS hub_id           -- hub
-                   ,CAST(hub.NAME AS VARCHAR(100))                                                                           AS hub_name
+                  
+				   ,CAST(dep.RPT_GRP_SIX AS VARCHAR(55))	                                                                 AS pod_id
+                  
+				   ,CAST(pod.NAME AS VARCHAR(100))                                                                           AS pod_name         -- pod
+                  
+				   ,CAST(dep.RPT_GRP_SEVEN AS VARCHAR(55))                                                                   AS hub_id           -- hub
+                  
+				   ,CAST(hub.NAME AS VARCHAR(100))                                                                           AS hub_name
                    ,mdm.service_line_id                                                                                      AS service_line_id
                    ,mdm.service_line                                                                                         AS service_line
                    ,mdm.sub_service_line_id                                                                                  AS sub_service_line_id
@@ -252,20 +257,19 @@ SELECT DISTINCT
 
 				   ,mdm.LOC_ID                                                                                               AS rev_location_id
 				   ,mdm.REV_LOC_NAME                                                                                         AS rev_location
-
-				   ,uwd.Clrt_Financial_Division                                                                              AS financial_division_id
-				   ,CAST(uwd.Clrt_Financial_Division_Name AS VARCHAR(150))													 AS financial_division_name
-				   ,uwd.Clrt_Financial_SubDivision                                                                           AS financial_sub_division_id
-				   ,uwd.Clrt_Financial_SubDivision_Name																		 AS financial_sub_division_name
-
-				   ,uwd.SOM_Group_ID																						 AS som_group_id
-				   ,uwd.SOM_group																						     AS som_group_name
-				   
-				   ,uwd.SOM_department_id																					 AS som_department_id
-				   ,uwd.SOM_department																						 AS som_department_name
-				   ,uwd.SOM_division_id																						 AS som_division_id
-				   ,uwd.SOM_division_name																					 AS som_division_name
-				   ,uwd.SOM_division_5																						 AS som_division_5 -- VARCHAR(150)
+	
+				   ,physcn.Clrt_Financial_Division																			 AS financial_division_id
+				   ,physcn.Clrt_Financial_Division_Name																		 AS financial_division_name
+				   ,physcn.Clrt_Financial_SubDivision																		 AS financial_sub_division_id
+				   ,physcn.Clrt_Financial_SubDivision_Name																	 AS financial_sub_division_name
+				   ,physcn.SOM_Group_ID																						 AS som_group_id
+				   ,physcn.SOM_group																						 AS som_group_name
+				   ,physcn.SOM_department_id																				 AS som_department_id
+				   ,physcn.SOM_department																					 AS som_department_name
+				   ,physcn.SOM_division_5																					 AS som_division_id
+				   ,physcn.SOM_division_name																				 AS som_division_name
+				   ,physcn.som_hs_area_id																					 AS som_hs_area_id
+				   ,physcn.som_hs_area_name																					 AS som_hs_area_name
 
 				   ,CAST(appt.CANCEL_INITIATOR AS VARCHAR(55))                                                               AS CANCEL_INITIATOR
 				   ,CAST(appt.CANCEL_LEAD_HOURS AS INTEGER)                                                                  AS CANCEL_LEAD_HOURS
@@ -281,14 +285,11 @@ SELECT DISTINCT
 						 ELSE 0
 					END AS appt_event_Provider_Canceled
 					
-	               ,ser.STAFF_RESOURCE_C -- INTEGER
-	               ,ser.STAFF_RESOURCE -- VARCHAR(20)
-	               ,ser.PROVIDER_TYPE_C -- VARCHAR(66)
-	               ,ser.PROV_TYPE -- VARCHAR(66)
-				   ,mdm.BUSINESS_UNIT -- VARCHAR(20)
-				   
-				   ,CASE WHEN uwd.SOM_Group_ID IS NULL THEN CAST(NULL AS SMALLINT) ELSE CAST(3 AS SMALLINT) End                  AS som_hs_area_id -- SMALLINT
-                   ,CASE WHEN uwd.SOM_Group_ID IS NULL THEN CAST(NULL AS VARCHAR(150)) ELSE CAST('School of Medicine' AS VARCHAR(150)) END AS som_hs_area_name -- VARCHAR(150)
+	               ,ser.STAFF_RESOURCE_C
+	               ,ser.STAFF_RESOURCE
+	               ,ser.PROVIDER_TYPE_C
+	               ,ser.PROV_TYPE
+				   ,mdm.BUSINESS_UNIT
 
 FROM                CLARITY_App.dbo.Dim_Date                           AS dmdt
     LEFT OUTER JOIN
@@ -574,59 +575,8 @@ FROM                CLARITY_App.dbo.Dim_Date                           AS dmdt
                 -- -------------------------------------
                 -- SOM Hierarchy--
                 -- -------------------------------------
-	            LEFT OUTER JOIN
-	            (
-					SELECT DISTINCT
-					    wd.sk_Dim_Physcn,
-						wd.PROV_ID,
-             			wd.Clrt_Financial_Division,
-			    		wd.Clrt_Financial_Division_Name,
-						wd.Clrt_Financial_SubDivision, 
-					    wd.Clrt_Financial_SubDivision_Name,
-					    wd.wd_Dept_Code,
-					    wd.SOM_Group_ID,
-					    wd.SOM_Group,
-						wd.SOM_department_id,
-					    wd.SOM_department,
-						wd.SOM_division_id,
-						wd.SOM_division_name,
-						wd.SOM_division_5
-					FROM
-					(
-					    SELECT
-						    cwlk.sk_Dim_Physcn,
-							cwlk.PROV_ID,
-             			    cwlk.Clrt_Financial_Division,
-			    		    cwlk.Clrt_Financial_Division_Name,
-						    cwlk.Clrt_Financial_SubDivision, 
-							cwlk.Clrt_Financial_SubDivision_Name,
-							cwlk.wd_Dept_Code,
-							som.SOM_Group_ID,
-							som.SOM_Group,
-							som.SOM_department_id,
-							som.SOM_department,
-							som.SOM_division_id,
-							som.SOM_division_name,
-							som.SOM_division_5,
-							ROW_NUMBER() OVER (PARTITION BY cwlk.sk_Dim_Physcn ORDER BY som.som_group_id ASC) AS [SOMSeq]
-						FROM Rptg.vwRef_Crosswalk_HSEntity_Prov AS cwlk
-						    LEFT OUTER JOIN (SELECT DISTINCT
-							                     SOM_Group_ID,
-												 SOM_Group,
-												 SOM_department_id,
-												 SOM_department,
-												 SOM_division_id,
-												 SOM_division_name,
-												 SOM_division_5
-						                     FROM Rptg.vwRef_SOM_Hierarchy
-						                    ) AS som
-						        ON cwlk.wd_Dept_Code = som.SOM_division_5
-					    WHERE cwlk.wd_Is_Primary_Job = 1
-                              AND cwlk.wd_Is_Position_Active = 1
-					) AS wd
-					WHERE wd.SOMSeq = 1
-				) AS uwd
-				    ON uwd.PROV_ID = appt.VISIT_PROV_ID
+				LEFT OUTER JOIN CLARITY_App.Rptg.vwRef_Physcn_Combined physcn
+				    ON physcn.PROV_ID = appt.VISIT_PROV_ID
 
 WHERE               1 = 1
 

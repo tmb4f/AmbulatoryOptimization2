@@ -7,12 +7,25 @@ GO
 SET QUOTED_IDENTIFIER ON
 GO
 
-ALTER PROCEDURE [ETL].[uspSrc_AmbOpt_Scheduled_Appointment_Metric]
-    (
-     @startdate SMALLDATETIME = NULL
-    ,@enddate SMALLDATETIME = NULL
-    )
-AS 
+DECLARE @startdate SMALLDATETIME
+       ,@enddate SMALLDATETIME
+
+--SET @startdate = NULL
+--SET @enddate = NULL
+--SET @startdate = '2/1/2019 00:00 AM'
+--SET @enddate = '3/4/2019 11:59 PM'
+--SET @startdate = '7/1/2017 00:00 AM'
+--SET @startdate = '7/1/2018 00:00 AM'
+--SET @enddate = '6/30/2019 11:59 PM'
+SET @startdate = '7/1/2019 00:00 AM'
+SET @enddate = '7/31/2019 11:59 PM'
+
+--ALTER PROCEDURE [ETL].[uspSrc_AmbOpt_Scheduled_Appointment_Metric]
+--    (
+--     @startdate SMALLDATETIME = NULL
+--    ,@enddate SMALLDATETIME = NULL
+--    )
+--AS 
 --/**********************************************************************************************************************
 --WHAT: Create procedure ETL.uspSrc_AmbOpt_Scheduled_Appointment_Metric
 --WHO : Tom Burgan
@@ -42,7 +55,7 @@ AS
 --              SUM(appt_event_Completed = 1 AND appt_event_New_to_Specialty = 1 AND Appointment_Lag_Days >= 0)
 --
 -- Total Visits
---				SUM(appt_event_Completed = 1)
+--				SUM(appt_event_Completed = 1 OR appt_event_Arrived = 1)
 --
 -- Average Visit Time
 --				SUM(CASE WHEN (appt_event_Completed = 1 OR appt_event_Arrived = 1) THEN CYCLE_TIME_MINUTES_Adjusted ELSE 0 END)
@@ -114,6 +127,9 @@ DECLARE @locstartdate SMALLDATETIME,
 
 SET @locstartdate = @startdate
 SET @locenddate   = @enddate
+
+IF OBJECT_ID('tempdb..#appt ') IS NOT NULL
+DROP TABLE #appt
 
 SELECT CAST('Appointment' AS VARCHAR(50)) AS event_type,
        CASE
@@ -261,6 +277,8 @@ SELECT CAST('Appointment' AS VARCHAR(50)) AS event_type,
 	   evnts.Appointment_Request_Date,
        (SELECT COUNT(*) FROM DS_HSDW_Prod.Rptg.vwDim_Date ddte LEFT OUTER JOIN DS_HSDM_App.Rptg.Holiday_Dates hdte ON hdte.Holiday_Date = ddte.day_date WHERE weekday_ind = 1 AND hdte.Holiday_Date IS NULL AND day_date >= evnts.Appointment_Request_Date AND day_date < evnts.APPT_DT) Appointment_Lag_Business_Days,
 	   evnts.BILL_PROV_YN
+
+INTO #appt
 
 FROM
 (
@@ -715,7 +733,13 @@ FROM
 WHERE date_dim.day_date >= @locstartdate
       AND date_dim.day_date < @locenddate
 
-ORDER BY date_dim.day_date;
+--ORDER BY date_dim.day_date;
+
+SELECT *
+FROM #appt
+WHERE ((event_count = 1)
+AND (appt_event_Completed = 1 OR appt_event_Arrived = 1))
+ORDER BY event_date;
 
 GO
 

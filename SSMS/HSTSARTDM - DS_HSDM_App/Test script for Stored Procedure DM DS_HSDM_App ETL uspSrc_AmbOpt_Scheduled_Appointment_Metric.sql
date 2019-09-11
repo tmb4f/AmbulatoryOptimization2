@@ -10,10 +10,13 @@ GO
 DECLARE @startdate SMALLDATETIME
        ,@enddate SMALLDATETIME
 
---SET @startdate = NULL
---SET @enddate = NULL
-SET @startdate = '2/3/2019 00:00 AM'
-SET @enddate = '2/9/2019 11:59 PM'
+SET @startdate = NULL
+SET @enddate = NULL
+--SET @startdate = '2/1/2019 00:00 AM'
+--SET @enddate = '3/4/2019 11:59 PM'
+--SET @startdate = '7/1/2017 00:00 AM'
+--SET @startdate = '7/1/2018 00:00 AM'
+--SET @enddate = '9/30/2018 11:59 PM'
 
 --ALTER PROCEDURE [ETL].[uspSrc_AmbOpt_Scheduled_Appointment_Metric]
 --    (
@@ -37,9 +40,9 @@ SET @enddate = '2/9/2019 11:59 PM'
 --              (SUM(appt_event_Canceled = 0) + SUM(appt_event_Canceled_Late = 1) + SUM(appt_event_Provider_Canceled = 1 AND Cancel_Lead_Days <= 45))
 --
 -- Bump Rate
---				SUM(appt_event_Provider_Canceled = 1 AND Cancel_Lead_Days <= 45))
+--				SUM((Prov_Typ = 'Fellow' OR Prov_Typ = 'Nurse Practitioner' OR Prov_Typ = 'Physician' OR Prov_Typ = 'Physician Assistant') AND appt_event_Provider_Canceled = 1 AND Cancel_Lead_Days <= 45)
 --              /
---              (SUM(appt_event_Canceled = 0) + SUM(appt_event_Canceled_Late = 1) + SUM(appt_event_Provider_Canceled = 1 AND Cancel_Lead_Days <= 45))
+--              SUM((Prov_Typ = 'Fellow' OR Prov_Typ = 'Nurse Practitioner' OR Prov_Typ = 'Physician' OR Prov_Typ = 'Physician Assistant') AND (appt_event_Canceled = 0 OR appt_event_Canceled_Late = 1 OR (appt_event_Provider_Canceled = 1 AND Cancel_Lead_Days <= 45)))
 --
 -- Percentage of New Patient Visits
 --				SUM(appt_event_Completed = 1 AND appt_event_New_to_Specialty = 1) / SUM(appt_event_Completed = 1)
@@ -50,12 +53,17 @@ SET @enddate = '2/9/2019 11:59 PM'
 --              SUM(appt_event_Completed = 1 AND appt_event_New_to_Specialty = 1 AND Appointment_Lag_Days >= 0)
 --
 -- Total Visits
---				SUM(appt_event_Completed = 1)
+--				SUM(appt_event_Completed = 1 OR appt_event_Arrived = 1)
 --
 -- Average Visit Time
 --				SUM(CASE WHEN (appt_event_Completed = 1 OR appt_event_Arrived = 1) THEN CYCLE_TIME_MINUTES_Adjusted ELSE 0 END)
 --              /
 --              SUM((appt_event_Completed = 1 OR appt_event_Arrived = 1) AND CYCLE_TIME_MINUTES_Adjusted >= 0)
+--
+-- Percentage of New Patients Seen Within 7 Business Days
+--				SUM(appt_event_Completed = 1 AND appt_event_New_to_Specialty = 1 AND Appointment_Lag_Business_Days <= 6)
+--              /
+--              SUM(appt_event_Completed = 1 AND appt_event_New_to_Specialty = 1)
 --			
 -------------------------------------------------------------------------------------------------------------------------
 --INFO: 
@@ -95,8 +103,14 @@ SET @enddate = '2/9/2019 11:59 PM'
 --         03/28/2019 - BDD     ---cast various columns as proper data type for portal tables removed w_ from new column names to match other portal processes.
 --         04/05/2019 - TMB - correct statement setting value of Clrt_Financial_Division_Name
 --         05/07/2019 - TMB - add logic for updated/new views Rptg.vwRef_Crosswalk_HSEntity_Prov and Rptg.vwRef_SOM_Hierarchy
---         05/09/2019 - TMB - edit logic to resolve issue resulting from multiple primary, active wd jobs for a provider;
+--         05/10/2019 - TMB - edit logic to resolve issue resulting from multiple primary, active wd jobs for a provider;
 --                            add place-holder columns for w_som_hs_area_id (smallint) and w_som_hs_area_name (VARCHAR(150))
+--         07/09/2019 - TMB - change logic for setting SOM hierarchy values; add APPT_SERIAL_NUM, RESCHED_APPT_CSN_ID
+--         07/26/2019 - TMB - add columns Appointment_Request_Date and Appointment_Lag_Business_Days
+--         07/29/2019 - TMB - add column BILL_PROV_YN
+--         08/07/2019 - TMB - edit Appointment_Lag_Business_Days calculation: exclude holidays from business days classification;
+--                            change documentation defining Bump Rate calculation
+--         08/14/2019 - TMB - change documentation defining Completed Visits calculation
 --************************************************************************************************************************
 
     SET NOCOUNT ON;
@@ -112,6 +126,18 @@ DECLARE @locstartdate SMALLDATETIME,
 
 SET @locstartdate = @startdate
 SET @locenddate   = @enddate
+
+IF OBJECT_ID('tempdb..#metric ') IS NOT NULL
+DROP TABLE #metric
+
+IF OBJECT_ID('tempdb..#canclate ') IS NOT NULL
+DROP TABLE #canclate
+
+IF OBJECT_ID('tempdb..#bump ') IS NOT NULL
+DROP TABLE #bump
+
+IF OBJECT_ID('tempdb..#bumprsch ') IS NOT NULL
+DROP TABLE #bumprsch
 
 SELECT CAST('Appointment' AS VARCHAR(50)) AS event_type,
        CASE
@@ -197,8 +223,11 @@ SELECT CAST('Appointment' AS VARCHAR(50)) AS event_type,
        ISNULL(evnts.appt_event_Completed,CAST(0 AS INT)) AS appt_event_Completed,
        ISNULL(evnts.appt_event_Arrived,CAST(0 AS INT)) AS appt_event_Arrived,
        ISNULL(evnts.appt_event_New_to_Specialty,CAST(0 AS INT)) AS appt_event_New_to_Specialty,
-
-       evnts.Appointment_Lag_Days,
+	   
+       CASE
+           WHEN (evnts.APPT_STATUS_FLAG IS NOT NULL) THEN DATEDIFF(dd, evnts.Appointment_Request_Date, evnts.APPT_DT)
+           ELSE CAST(NULL AS INT)
+       END AS Appointment_Lag_Days,
        evnts.CYCLE_TIME_MINUTES_Adjusted,
 
 	   evnts.DEPT_SPECIALTY_NAME,
@@ -249,9 +278,13 @@ SELECT CAST('Appointment' AS VARCHAR(50)) AS event_type,
 	   evnts.som_department_name,
 	   evnts.som_division_id,
 	   evnts.som_division_name,
-	   evnts.som_division_5,
-	   evnts.som_hs_area_id, -- SMALLINT
-	   evnts.som_hs_area_name -- VARCHAR(50)
+	   evnts.som_hs_area_id,
+	   evnts.som_hs_area_name,
+	   evnts.APPT_SERIAL_NUM,
+	   evnts.RESCHED_APPT_CSN_ID,
+	   evnts.Appointment_Request_Date,
+       (SELECT COUNT(*) FROM DS_HSDW_Prod.Rptg.vwDim_Date ddte LEFT OUTER JOIN DS_HSDM_App.Rptg.Holiday_Dates hdte ON hdte.Holiday_Date = ddte.day_date WHERE weekday_ind = 1 AND hdte.Holiday_Date IS NULL AND day_date >= evnts.Appointment_Request_Date AND day_date < evnts.APPT_DT) Appointment_Lag_Business_Days,
+	   evnts.BILL_PROV_YN
 
 INTO #metric
 
@@ -410,24 +443,16 @@ FROM
             END AS appt_event_New_to_Specialty,
                                                  -- Calculated columns
 -- Assumes that there is always a referral creation date (CHANGE_DATE) documented when a referral entry date (ENTRY_DATE) is documented
-            CASE
-                WHEN (main.APPT_STATUS_FLAG IS NOT NULL) THEN
-                    DATEDIFF(   dd,
-                                CASE
-                                    WHEN main.ENTRY_DATE IS NULL THEN
-                                        main.APPT_MADE_DATE
-									WHEN main.ENTRY_DATE >= main.APPT_MADE_DATE AND main.CHANGE_DATE >= main.APPT_MADE_DATE THEN
-									    main.APPT_MADE_DATE
-									WHEN main.ENTRY_DATE < main.CHANGE_DATE THEN
-									    main.ENTRY_DATE
-                                    ELSE
-                                        main.CHANGE_DATE
-                                END,
-                                main.APPT_DT
-                            )
-                ELSE
-                    CAST(NULL AS INT)
-            END AS Appointment_Lag_Days,
+			CASE
+				WHEN main.ENTRY_DATE IS NULL THEN
+					main.APPT_MADE_DATE
+				WHEN main.ENTRY_DATE >= main.APPT_MADE_DATE AND main.CHANGE_DATE >= main.APPT_MADE_DATE THEN
+					main.APPT_MADE_DATE
+				WHEN main.ENTRY_DATE < main.CHANGE_DATE THEN
+					main.ENTRY_DATE
+				ELSE
+					main.CHANGE_DATE
+			END AS Appointment_Request_Date,
             CASE
                 WHEN
                 (
@@ -499,9 +524,11 @@ FROM
 			main.som_department_name,
 			main.som_division_id,
 			main.som_division_name,
-			main.som_division_5,
 			main.som_hs_area_id,
-			main.som_hs_area_name
+			main.som_hs_area_name,
+			main.APPT_SERIAL_NUM,
+			main.RESCHED_APPT_CSN_ID,
+			main.BILL_PROV_YN
 
         FROM
         ( --main
@@ -612,26 +639,24 @@ FROM
 				   mdmloc.BUSINESS_UNIT,
 				   ser.Prov_Typ,
 				   ser.Staff_Resource,
-
 				   mdmloc.LOC_ID AS rev_location_id,
-				   mdmloc.REV_LOC_NAME AS rev_location,
-
-         		   uwd.Clrt_Financial_Division AS financial_division_id,
-				   CAST(uwd.Clrt_Financial_Division_Name AS VARCHAR(150)) AS financial_division_name,
-
-				   uwd.Clrt_Financial_SubDivision AS financial_sub_division_id, 
-				   uwd.Clrt_Financial_SubDivision_Name AS financial_sub_division_name,
-
-				   uwd.SOM_Group_ID AS som_group_id,
-				   uwd.SOM_group AS som_group_name,
-				   uwd.SOM_department_id AS som_department_id,
-				   uwd.SOM_department AS som_department_name,
-				   uwd.SOM_division_id AS som_division_id,
-				   uwd.SOM_division_name AS som_division_name,
-				   uwd.SOM_division_5 AS som_division_5,
-
-				   CAST(NULL AS SMALLINT) AS som_hs_area_id,
-				   CAST(NULL AS VARCHAR(150)) AS som_hs_area_name
+				   mdmloc.REV_LOC_NAME AS rev_location,				   
+                   -- SOM
+				   physcn.Clrt_Financial_Division AS financial_division_id,
+				   physcn.Clrt_Financial_Division_Name AS financial_division_name,
+				   physcn.Clrt_Financial_SubDivision AS	financial_sub_division_id,
+				   physcn.Clrt_Financial_SubDivision_Name AS financial_sub_division_name,
+				   physcn.SOM_Group_ID AS som_group_id,
+				   physcn.SOM_group AS som_group_name,
+				   physcn.SOM_department_id AS som_department_id,
+				   physcn.SOM_department AS	som_department_name,
+				   physcn.SOM_division_5 AS	som_division_id,
+				   physcn.SOM_division_name AS som_division_name,
+				   physcn.som_hs_area_id AS	som_hs_area_id,
+				   physcn.som_hs_area_name AS som_hs_area_name,
+				   appts.APPT_SERIAL_NUM,
+				   appts.RESCHED_APPT_CSN_ID,
+				   appts.BILL_PROV_YN
 
             FROM Stage.Scheduled_Appointment AS appts
                 LEFT OUTER JOIN DS_HSDW_Prod.Rptg.vwDim_Clrt_SERsrc ser
@@ -702,59 +727,8 @@ FROM
                 -- -------------------------------------
                 -- SOM Hierarchy--
                 -- -------------------------------------
-	            LEFT OUTER JOIN
-	            (
-					SELECT DISTINCT
-					    wd.sk_Dim_Physcn,
-						wd.PROV_ID,
-             			wd.Clrt_Financial_Division,
-			    		wd.Clrt_Financial_Division_Name,
-						wd.Clrt_Financial_SubDivision, 
-					    wd.Clrt_Financial_SubDivision_Name,
-					    wd.wd_Dept_Code,
-					    wd.SOM_Group_ID,
-					    wd.SOM_Group,
-						wd.SOM_department_id,
-					    wd.SOM_department,
-						wd.SOM_division_id,
-						wd.SOM_division_name,
-						wd.SOM_division_5
-					FROM
-					(
-					    SELECT
-						    cwlk.sk_Dim_Physcn,
-							cwlk.PROV_ID,
-             			    cwlk.Clrt_Financial_Division,
-			    		    cwlk.Clrt_Financial_Division_Name,
-						    cwlk.Clrt_Financial_SubDivision, 
-							cwlk.Clrt_Financial_SubDivision_Name,
-							cwlk.wd_Dept_Code,
-							som.SOM_Group_ID,
-							som.SOM_Group,
-							som.SOM_department_id,
-							som.SOM_department,
-							som.SOM_division_id,
-							som.SOM_division_name,
-							som.SOM_division_5,
-							ROW_NUMBER() OVER (PARTITION BY cwlk.sk_Dim_Physcn ORDER BY som.som_group_id ASC) AS [SOMSeq]
-						FROM Rptg.vwRef_Crosswalk_HSEntity_Prov AS cwlk
-						    LEFT OUTER JOIN (SELECT DISTINCT
-							                     SOM_Group_ID,
-												 SOM_Group,
-												 SOM_department_id,
-												 SOM_department,
-												 SOM_division_id,
-												 SOM_division_name,
-												 SOM_division_5
-						                     FROM Rptg.vwRef_SOM_Hierarchy
-						                    ) AS som
-						        ON cwlk.wd_Dept_Code = som.SOM_division_5
-					    WHERE cwlk.wd_Is_Primary_Job = 1
-                              AND cwlk.wd_Is_Position_Active = 1
-					) AS wd
-					WHERE wd.SOMSeq = 1
-				) AS uwd
-				    ON uwd.sk_Dim_Physcn = doc.sk_Dim_Physcn
+				LEFT OUTER JOIN DS_HSDW_Prod.Rptg.vwRef_Physcn_Combined physcn
+				    ON physcn.sk_Dim_Physcn = doc.sk_Dim_Physcn
 
             WHERE (appts.APPT_DT >= @locstartdate
               AND appts.APPT_DT < @locenddate)
@@ -769,14 +743,194 @@ WHERE date_dim.day_date >= @locstartdate
 
 --ORDER BY date_dim.day_date;
 
-SELECT *
+--SELECT day_date
+--     , date_key
+--	 , day_of_week_num
+--	 , day_of_week
+--	 , weekday_ind
+--FROM DS_HSDW_Prod.Rptg.vwDim_Date
+--ORDER BY day_date
+
+SELECT event_type,
+       metric.epic_department_name,
+       event_count,
+	   event_date,
+       APPT_MADE_DATE,
+       ENTRY_DATE,
+       CHANGE_DATE,
+	   Appointment_Request_Date,
+       APPT_DT,
+	   Appointment_Lag_Days,
+	   Appointment_Lag_Business_Days,
+	   --ddte1.day_of_week AS APPT_MADE_DATE_dow,
+	   --ddte2.day_of_week AS ENTRY_DATE_dow,
+	   --ddte3.day_of_week AS CHANGE_DATE_dow,
+	   --ddte4.day_of_week AS APPT_DT_dow,
+       APPT_STATUS_FLAG,
+       APPT_STATUS_C,
+       CONTACT_DATE,
+       PAT_ENC_CSN_ID,
+       VIS_NEW_TO_SPEC_YN,
+	   metric.BILL_PROV_YN
+--SELECT *
+--SELECT DISTINCT
+--	metric.Prov_Typ
+FROM #metric metric
+--LEFT OUTER JOIN DS_HSDW_Prod.Rptg.vwDim_Date ddte1
+--ON ddte1.day_date = metric.APPT_MADE_DATE
+--LEFT OUTER JOIN DS_HSDW_Prod.Rptg.vwDim_Date ddte2
+--ON ddte2.day_date = metric.ENTRY_DATE
+--LEFT OUTER JOIN DS_HSDW_Prod.Rptg.vwDim_Date ddte3
+--ON ddte3.day_date = metric.CHANGE_DATE
+--LEFT OUTER JOIN DS_HSDW_Prod.Rptg.vwDim_Date ddte4
+--ON ddte4.day_date = metric.APPT_DT
+--WHERE appt_event_Completed = 1
+--AND appt_event_New_to_Specialty = 1
+--AND Appointment_Lag_Days >= 0
+--AND ((ddte1.day_of_week IN ('Saturday','Sunday'))
+--OR (ddte2.day_of_week IN ('Saturday','Sunday'))
+--OR (ddte3.day_of_week IN ('Saturday','Sunday'))
+--OR (ddte4.day_of_week IN ('Saturday','Sunday')))
+--WHERE appt_event_Canceled = 0 OR appt_event_Canceled_Late = 1 OR (appt_event_Provider_Canceled = 1 AND Cancel_Lead_Days <= 45)
+--ORDER BY APPT_SERIAL_NUM
+ORDER BY event_date
+--ORDER BY APPT_DT_dow
+--ORDER BY ROW_NUMBER() OVER (PARTITION BY PAT_ENC_CSN_ID ORDER BY event_date) desc
+--ORDER BY metric.Prov_Typ
+/*
+SELECT
+	APPT_SERIAL_NUM
+  , MAX(CASE WHEN RESCHED_APPT_CSN_ID IS NOT NULL THEN 1 ELSE 0 END) AS Rescheduled
+  , MIN(APPT_MADE_DTTM) AS Min_APPT_MADE_DTTM
+INTO #canclate
 FROM #metric
+WHERE appt_event_Canceled_Late = 1
+--AND RESCHED_APPT_CSN_ID IS NOT NULL
+GROUP BY APPT_SERIAL_NUM
+
+SELECT PAT_ENC_CSN_ID
+     , APPT_MADE_DTTM
+	 , Min_APPT_MADE_DTTM
+     , #metric.APPT_SERIAL_NUM
+	 , #canclate.Rescheduled
+	 , RESCHED_APPT_CSN_ID
+	 , event_date
+	 , APPT_DTTM
+	 , APPT_CANC_DTTM
+	 , provider_id
+	 , epic_department_id
+	 , APPT_STATUS_C
+	 , appt_event_Canceled
+	 , appt_event_Canceled_Late
+	 , appt_event_Provider_Canceled
+	 , appt_event_Completed
+	 , Cancel_Lead_Days
+	 , CANCEL_REASON_NAME
+	 , CANCEL_INITIATOR
+	 --, CASE WHEN Rescheduled = 1 AND CANCEL_INITIATOR = 'PROVIDER' THEN ROW_NUMBER() OVER (PARTITION BY #metric.APPT_SERIAL_NUM ORDER BY APPT_MADE_DTTM) ELSE 0 END AS Seq
+--SELECT DISTINCT
+--       APPT_MADE_DTTM
+--	 , #metric.APPT_SERIAL_NUM
+--INTO #bumprsch
+FROM #metric
+INNER JOIN #canclate ON #metric.APPT_SERIAL_NUM = #canclate.APPT_SERIAL_NUM
 --WHERE Appointment_Lag_Days >= 0 AND appt_event_New_to_Specialty = 1 AND appt_event_Completed = 1
 --WHERE appt_event_Canceled = 0 OR appt_event_Canceled_Late = 1 OR (appt_event_Provider_Canceled = 1 AND Cancel_Lead_Days <= 45)
 --WHERE appt_event_Completed = 1
 --WHERE som_group_id IS NOT NULL
+--WHERE ((appt_event_Provider_Canceled = 1 AND Cancel_Lead_Days <= 45) AND Rescheduled = 0)
+--OR ((APPT_MADE_DTTM >= Min_APPT_MADE_DTTM) AND Rescheduled = 1)
+WHERE (appt_event_Canceled_Late = 1 AND Rescheduled = 0)
+OR ((APPT_MADE_DTTM >= Min_APPT_MADE_DTTM) AND Rescheduled = 1)
+--WHERE ((APPT_MADE_DTTM >= Min_APPT_MADE_DTTM) AND Rescheduled = 1) AND (CANCEL_INITIATOR = 'PROVIDER')
+--GROUP BY APPT_STATUS_FLAG
+ORDER BY #canclate.Min_APPT_MADE_DTTM
+       , #metric.APPT_SERIAL_NUM
+       , #metric.APPT_MADE_DTTM
+*/
+/*
+--SELECT
+--	APPT_SERIAL_NUM
+--  , MAX(CASE WHEN RESCHED_APPT_CSN_ID IS NOT NULL THEN 1 ELSE 0 END) AS Rescheduled
+--  , MIN(APPT_MADE_DTTM) AS Min_APPT_MADE_DTTM
+--INTO #bump
+--FROM #metric
+--WHERE (appt_event_Provider_Canceled = 1 AND Cancel_Lead_Days <= 45)
+----AND RESCHED_APPT_CSN_ID IS NOT NULL
+--GROUP BY APPT_SERIAL_NUM
+SELECT person_id
+     , PAT_ENC_CSN_ID
+     , #metric.APPT_SERIAL_NUM
+	 , APPT_CANC_DTTM
+     , APPT_MADE_DTTM
+	 , APPT_DTTM
+	 , APPT_STATUS_FLAG
+	 , provider_id
+	 , epic_department_id
+	 , CANCEL_REASON_NAME
+	 , CANCEL_INITIATOR
+FROM #metric
+WHERE APPT_SERIAL_NUM = 200008508343
+ORDER BY person_id,
+         PAT_ENC_CSN_ID
+
+SELECT
+	person_id
+  , PAT_ENC_CSN_ID AS Bump_PAT_ENC_CSN_ID
+  , APPT_DTTM AS Bump_APPT_DTTM
+  , APPT_CANC_DTTM AS Bump_APPT_CANC_DTTM
+INTO #bump
+FROM #metric
+WHERE (appt_event_Provider_Canceled = 1 AND Cancel_Lead_Days <= 45)
+
+SELECT #bump.person_id
+     , PAT_ENC_CSN_ID
+     , #metric.APPT_SERIAL_NUM
+     , Bump_PAT_ENC_CSN_ID
+	 , APPT_CANC_DTTM
+     , APPT_MADE_DTTM
+	 , Bump_APPT_DTTM
+	 , APPT_DTTM
+	 --, CAST(ROUND(CAST(DATEDIFF(HOUR, Bump_APPT_DTTM, APPT_DTTM) AS NUMERIC(7,2))/24.0,1) AS NUMERIC(4,1)) AS Days_To_Appointment
+	 , CAST(ROUND(CAST(DATEDIFF(HOUR, Bump_APPT_DTTM, APPT_DTTM) AS NUMERIC(8,3))/24.0,2) AS NUMERIC(5,2)) AS Days_To_Appointment
+	 , APPT_STATUS_FLAG
+	 , provider_id
+	 , epic_department_id
+	 --, Min_APPT_MADE_DTTM
+	 --, #bump.Rescheduled
+	 , RESCHED_APPT_CSN_ID
+	 , event_date
+	 , appt_event_Canceled
+	 , appt_event_Canceled_Late
+	 , appt_event_Provider_Canceled
+	 , appt_event_Completed
+	 , Cancel_Lead_Days
+	 , CANCEL_REASON_NAME
+	 , CANCEL_INITIATOR
+	 --, CASE WHEN Rescheduled = 1 AND CANCEL_INITIATOR = 'PROVIDER' THEN ROW_NUMBER() OVER (PARTITION BY #metric.APPT_SERIAL_NUM ORDER BY APPT_MADE_DTTM) ELSE 0 END AS Seq
+--SELECT DISTINCT
+--       APPT_MADE_DTTM
+--	 , #metric.APPT_SERIAL_NUM
+INTO #bumprsch
+FROM #metric
+--INNER JOIN #bump ON #metric.APPT_SERIAL_NUM = #bump.APPT_SERIAL_NUM
+INNER JOIN #bump ON #metric.person_id = #bump.person_id
+--WHERE Appointment_Lag_Days >= 0 AND appt_event_New_to_Specialty = 1 AND appt_event_Completed = 1
+--WHERE appt_event_Canceled = 0 OR appt_event_Canceled_Late = 1 OR (appt_event_Provider_Canceled = 1 AND Cancel_Lead_Days <= 45)
+--WHERE appt_event_Completed = 1
+--WHERE som_group_id IS NOT NULL
+--WHERE ((appt_event_Provider_Canceled = 1 AND Cancel_Lead_Days <= 45) AND Rescheduled = 0)
+--OR ((APPT_MADE_DTTM >= Min_APPT_MADE_DTTM) AND Rescheduled = 1)
+--WHERE ((appt_event_Provider_Canceled = 1 AND Cancel_Lead_Days <= 45) AND Rescheduled = 0)
+--OR ((APPT_MADE_DTTM >= Min_APPT_MADE_DTTM) AND ((appt_event_Provider_Canceled = 1 AND Cancel_Lead_Days <= 45) AND Rescheduled = 1))
+--WHERE ((APPT_MADE_DTTM >= Min_APPT_MADE_DTTM) AND Rescheduled = 1) AND (CANCEL_INITIATOR = 'PROVIDER')
+WHERE ((#metric.PAT_ENC_CSN_ID >= #bump.Bump_PAT_ENC_CSN_ID)
+       AND ((#metric.PAT_ENC_CSN_ID = #bump.Bump_PAT_ENC_CSN_ID) OR
+	        ((#metric.PAT_ENC_CSN_ID <> #bump.Bump_PAT_ENC_CSN_ID) AND (#metric.APPT_MADE_DTTM >= #bump.Bump_APPT_CANC_DTTM))))
 --GROUP BY APPT_STATUS_FLAG
 
+SELECT *
+FROM #bumprsch
 --ORDER BY Appointment_Lag_Days DESC
 --ORDER BY APPT_STATUS_FLAG
 --ORDER BY COUNT(*) DESC
@@ -785,8 +939,39 @@ FROM #metric
 --         PAT_ENC_CSN_ID
 --ORDER BY w_financial_division_id,
 --         event_date
-ORDER BY PAT_ENC_CSN_ID,
-         event_date
+--ORDER BY PAT_ENC_CSN_ID,
+--         event_date
+--ORDER BY APPT_SERIAL_NUM,
+--         PAT_ENC_CSN_ID,
+--         event_date
+--ORDER BY APPT_SERIAL_NUM
+--ORDER BY Rescheduled DESC,
+--         APPT_SERIAL_NUM ,
+--         PAT_ENC_CSN_ID,
+--         event_date
+ORDER BY person_id,
+         Bump_PAT_ENC_CSN_ID,
+         PAT_ENC_CSN_ID
+
+--SELECT DISTINCT
+--	APPT_SERIAL_NUM
+--FROM #bumprsch
+----WHERE Rescheduled = 1 AND CANCEL_INITIATOR = 'PROVIDER'
+--WHERE Rescheduled = 1
+*/
+/*
+SELECT aggr.BumpCount
+      ,COUNT(*) AS Freq
+FROM
+(
+SELECT COUNT(*) AS BumpCount
+FROM #bumprsch
+WHERE Rescheduled = 1
+GROUP BY APPT_SERIAL_NUM
+) aggr
+GROUP BY aggr.BumpCount
+ORDER BY aggr.BumpCount
+*/
 
 GO
 

@@ -7,8 +7,8 @@ GO
 SET QUOTED_IDENTIFIER ON
 GO
 
-DECLARE @startdate SMALLDATETIME = NULL
-       ,@enddate SMALLDATETIME = NULL
+DECLARE @startdate SMALLDATETIME = NULL, 
+        @enddate SMALLDATETIME = NULL
 
 --SET @startdate = '7/20/2018 00:00 AM'
 --SET @enddate = '7/20/2018 11:59 PM'
@@ -19,66 +19,6 @@ DECLARE @startdate SMALLDATETIME = NULL
 SET @startdate = '2/1/2019 00:00 AM'
 --SET @startdate = '7/1/2018 00:00 AM'
 SET @enddate = '2/28/2019 11:59 PM'
-
-DECLARE @Department TABLE (DepartmentId NUMERIC(18,0))
-
-INSERT INTO @Department
-(
-    DepartmentId
-)
-VALUES
--- (10210006)
---,(10210040)
---,(10210041)
---,(10211006)
---,(10214011)
---,(10214014)
---,(10217003)
---,(10239017)
---,(10239018)
---,(10239019)
---,(10239020)
---,(10241001)
---,(10242007)
---,(10242049)
---,(10243003)
---,(10244004)
---,(10348014)
---,(10354006)
---,(10354013)
---,(10354014)
---,(10354015)
---,(10354016)
---,(10354017)
---,(10354024)
---,(10354034)
---,(10354042)
---,(10354044)
---,(10354052)
---,(10354055)
- --(10214011)
- --(10210006)
- (10280004) -- AUBL PEDIATRICS
- --(10341002) -- CVPE UVA RHEU INF PNTP
- --(10228008) -- NRDG MAMMOGRAPHY
- --(10381003) -- UVEC RAD CT
- --(10354032) -- UVBB PHYSICAL THER FL4
-;
-
-DECLARE @Provider TABLE (ProviderId VARCHAR(18))
-
-INSERT INTO @Provider
-(
-    ProviderId
-)
-VALUES
- ('28813') -- FISHER, JOSEPH D
- --('1300563') -- ARTH INF
- --('41806') -- NORTHRIDGE DEXA
- --('1301100') -- CT6
- --('82262') -- CT APPOINTMENT ERC
- --('40758') -- PAYNE, PATRICIA
-;
 
 -- =====================================================================================
 -- Create procedure uspSrc_AmbOpt_Slot_Utilization
@@ -100,15 +40,12 @@ VALUES
 -------------------------------------------------------------------------------------------------------------------------
 --INFO: 
 --      INPUTS:
---              Rptg.vwDim_Date
---              CLARITY.dbo.V_AVAILABILITY
---              Stage.AmbOpt_Excluded_Department
---              CLARITY.dbo.CLARITY_SER
---              Rptg.vwRef_MDM_Location_Master
---              Rptg.vwPhyscn_Current_Svc_Ln
---              Rptg.Ref_Service_Line
---              Rptg.vwRef_Crosswalk_HSEntity_Prov
---              Rptg.vwRef_SOM_Hierarchy
+--              CLARITY_App.Rptg.vwDim_Date
+--				CLARITY.dbo.V_AVAILABILITY
+--				CLARITY_App.Stage.AmbOpt_Excluded_Department
+--				CLARITY.dbo.CLARITY_SER
+--				CLARITY_App.Rptg.vwRef_MDM_Location_Master
+--				CLARITY_App.Rptg.vwRef_Physcn_Combined
 --                
 --      OUTPUTS:  [ETL].[uspSrc_AmbOpt_Slot_Utilization]
 -- 
@@ -121,6 +58,7 @@ VALUES
 --       05/08/2019 - TMB - add logic for updated/new views Rptg.vwRef_Crosswalk_HSEntity_Prov and Rptg.vwRef_SOM_Hierarchy
 --       05/09/2019 - TMB - edit logic to resolve issue resulting from multiple primary, active wd jobs for a provider
 --       05/10/2019 - TMB - add place-holder columns for w_som_hs_area_id (smallint) and w_som_hs_area_name (VARCHAR(150))
+--       07/19/2019 - TMB - change logic for setting SOM hierarchy values; drop som_division_5 from Stage table 
 --************************************************************************************************************************
 
     SET NOCOUNT ON;
@@ -135,8 +73,6 @@ DECLARE @slotstartdate DATETIME,
 SET @slotstartdate = CAST(@startdate AS DATETIME)
 SET @slotenddate   = CAST(@enddate AS DATETIME)
 -------------------------------------------------------------------------------
-
---SELECT @slotstartdate, @slotenddate
 
 if OBJECT_ID('tempdb..#datetable') is not NULL
 DROP TABLE #datetable
@@ -290,7 +226,6 @@ ORDER BY util.DEPARTMENT_ID
 
   -- Create index for temp table #utilsum
 
---CREATE UNIQUE CLUSTERED INDEX IX_utilsum ON #utilsum ([DEPARTMENT_ID], [PROV_ID], [SLOT_BEGIN_DATE])
 CREATE UNIQUE CLUSTERED INDEX IX_utilsum ON #utilsum ([SLOT_BEGIN_DATE], [DEPARTMENT_ID], [PROV_ID])
 
 SELECT DISTINCT
@@ -386,22 +321,21 @@ CROSS JOIN #datetable dt
 --           ,STAFF_RESOURCE
 --           ,PROVIDER_TYPE_C
 --           ,PROV_TYPE
---           ,som_group_id
---           ,som_group_name
 --           ,rev_location_id
 --           ,rev_location
 --           ,financial_division_id
 --           ,financial_division_name
 --           ,financial_sub_division_id
 --           ,financial_sub_division_name
+--           ,som_group_id
+--           ,som_group_name
 --           ,som_department_id
 --           ,som_department_name
 --           ,som_division_id
 --           ,som_division_name
+--		   ,som_hs_area_id
+--		   ,som_hs_area_name
 --           ,BUSINESS_UNIT
---           ,som_division_5 -- VARCHAR(150)
---		   ,som_hs_area_id -- SMALLINT
---		   ,som_hs_area_name -- VARCHAR(150)
 --		   )
 SELECT 
        CAST('Slot Utilization' AS VARCHAR(50)) AS event_type
@@ -420,8 +354,6 @@ SELECT
 	  ,mdm.HUB_ID AS hub_id
 	  ,mdm.HUB AS hub_name
       ,date_dim.DEPARTMENT_ID AS epic_department_id
-      --,mdm.epic_department_name --04/08/2019 -Tom B Comment-out
-      --,mdm.epic_department_name_external
       ,mdm.EPIC_DEPT_NAME AS epic_department_name
       ,mdm.EPIC_EXT_NAME AS epic_department_name_external
       ,util.peds
@@ -439,8 +371,8 @@ SELECT
       ,ser.PROV_NAME AS provider_name
       ,mdm.service_line_id
       ,mdm.service_line
-	  ,physsvc.Service_Line_ID AS prov_service_line_id
-	  ,physsvc.Service_Line AS prov_service_line
+	  ,physcn.Service_Line_ID AS prov_service_line_id
+	  ,physcn.Service_Line AS prov_service_line
       ,mdm.sub_service_line_id
       ,mdm.sub_service_line
       ,mdm.opnl_service_id
@@ -449,8 +381,8 @@ SELECT
       ,mdm.corp_service_line
       ,mdm.hs_area_id
       ,mdm.hs_area_name
-	  ,physsvc.hs_area_id AS prov_hs_area_id
-	  ,physsvc.hs_area_name AS prov_hs_area_name
+	  ,physcn.hs_area_id AS prov_hs_area_id
+	  ,physcn.hs_area_name AS prov_hs_area_name
 	  ,util.[Regular Openings]
 	  ,util.[Overbook Openings]
 	  ,util.[Openings Booked]
@@ -475,29 +407,26 @@ SELECT
 	  ,ser.PROVIDER_TYPE_C
 	  ,ser.PROV_TYPE
 
-  	  ,uwd.SOM_Group_ID AS som_group_id
-	  ,uwd.SOM_group AS som_group_name
-
 	  ,mdm.LOC_ID AS rev_location_id
 	  ,mdm.REV_LOC_NAME AS rev_location
-	  
-	  ,uwd.Clrt_Financial_Division AS financial_division_id
-	  ,CAST(uwd.Clrt_Financial_Division_Name AS VARCHAR(150)) AS financial_division_name
-	  
-	  ,uwd.Clrt_Financial_SubDivision AS financial_sub_division_id
-	  ,uwd.Clrt_Financial_SubDivision_Name AS financial_sub_division_name
-	  
-	  ,uwd.SOM_department_id AS som_department_id
-	  ,uwd.SOM_department AS som_department_name
-	  ,uwd.SOM_division_id AS som_division_id
-	  ,uwd.SOM_division_name AS som_division_name
+	
+	  ,physcn.Clrt_Financial_Division AS financial_division_id
+	  ,physcn.Clrt_Financial_Division_Name AS financial_division_name
+	  ,physcn.Clrt_Financial_SubDivision AS financial_sub_division_id
+	  ,physcn.Clrt_Financial_SubDivision_Name AS financial_sub_division_name
+	  ,physcn.SOM_Group_ID AS som_group_id
+	  ,physcn.SOM_group	AS som_group_name
+	  ,physcn.SOM_department_id	AS som_department_id
+	  ,physcn.SOM_department AS som_department_name
+	  ,physcn.SOM_division_5 AS som_division_id
+	  ,physcn.SOM_division_name	AS som_division_name   	
+	  ,physcn.som_hs_area_id AS som_hs_area_id
+	  ,physcn.som_hs_area_name AS som_hs_area_name
 
-	  ,mdm.BUSINESS_UNIT	  
-	  ,uwd.SOM_division_5 AS som_division_5
-      ,CASE WHEN uwd.SOM_Group_ID IS NULL THEN CAST(NULL AS SMALLINT) ELSE CAST(3 AS SMALLINT) END AS som_hs_area_id
-	  ,CASE WHEN uwd.SOM_Group_ID IS NULL THEN CAST(NULL AS VARCHAR(150)) ELSE CAST('School of Medicine' AS VARCHAR(150)) END AS som_hs_area_name
+	  ,mdm.BUSINESS_UNIT
 
 INTO #RptgTable
+
 FROM
     #utildatetable AS date_dim
 LEFT OUTER JOIN
@@ -551,8 +480,6 @@ LEFT OUTER JOIN Stage.AmbOpt_Excluded_Department excl
 ON excl.DEPARTMENT_ID = date_dim.DEPARTMENT_ID
 LEFT OUTER JOIN CLARITY.dbo.CLARITY_SER AS ser
 ON ser.PROV_ID = date_dim.PROV_ID
---LEFT OUTER JOIN Rptg.vwRef_MDM_Location_Master_EpicSvc AS mdm --04/08/2019 -Tom B Comment-out
---ON  date_dim.DEPARTMENT_ID = mdm.epic_department_id
 LEFT OUTER JOIN
 (
     SELECT ROW_NUMBER() OVER (PARTITION BY EPIC_DEPARTMENT_ID ORDER BY HS_AREA_ID DESC) AS Seq
@@ -603,70 +530,12 @@ LEFT OUTER JOIN
 ) AS mdm
 ON (mdm.EPIC_DEPARTMENT_ID = date_dim.DEPARTMENT_ID) --04/08/2019 -Tom B Use to get LOC_ID and REV_LOC_NAME
 AND mdm.Seq = 1
-LEFT OUTER JOIN Rptg.vwPhyscn_Current_Svc_Ln AS mdmphyscn
-ON mdmphyscn.PROV_ID = date_dim.PROV_ID
-LEFT OUTER JOIN Rptg.Ref_Service_Line physsvc
-ON physsvc.Physician_Roster_Name = CASE
-                                     WHEN mdmphyscn.Service_Line IS NOT NULL THEN mdmphyscn.Service_Line
-		                             ELSE 'No Value Specified'
-	                               END
 
                 -- -------------------------------------
                 -- SOM Hierarchy--
                 -- -------------------------------------
-	            LEFT OUTER JOIN
-	            (
-					SELECT DISTINCT
-					    wd.sk_Dim_Physcn,
-						wd.PROV_ID,
-             			wd.Clrt_Financial_Division,
-			    		wd.Clrt_Financial_Division_Name,
-						wd.Clrt_Financial_SubDivision, 
-					    wd.Clrt_Financial_SubDivision_Name,
-					    wd.wd_Dept_Code,
-					    wd.SOM_Group_ID,
-					    wd.SOM_Group,
-						wd.SOM_department_id,
-					    wd.SOM_department,
-						wd.SOM_division_id,
-						wd.SOM_division_name,
-						wd.SOM_division_5
-					FROM
-					(
-					    SELECT
-						    cwlk.sk_Dim_Physcn,
-							cwlk.PROV_ID,
-             			    cwlk.Clrt_Financial_Division,
-			    		    cwlk.Clrt_Financial_Division_Name,
-						    cwlk.Clrt_Financial_SubDivision, 
-							cwlk.Clrt_Financial_SubDivision_Name,
-							cwlk.wd_Dept_Code,
-							som.SOM_Group_ID,
-							som.SOM_Group,
-							som.SOM_department_id,
-							som.SOM_department,
-							som.SOM_division_id,
-							som.SOM_division_name,
-							som.SOM_division_5,
-							ROW_NUMBER() OVER (PARTITION BY cwlk.sk_Dim_Physcn ORDER BY som.som_group_id ASC) AS [SOMSeq]
-						FROM Rptg.vwRef_Crosswalk_HSEntity_Prov AS cwlk
-						    LEFT OUTER JOIN (SELECT DISTINCT
-							                     SOM_Group_ID,
-												 SOM_Group,
-												 SOM_department_id,
-												 SOM_department,
-												 SOM_division_id,
-												 SOM_division_name,
-												 SOM_division_5
-						                     FROM Rptg.vwRef_SOM_Hierarchy
-						                    ) AS som
-						        ON cwlk.wd_Dept_Code = som.SOM_division_5
-					    WHERE cwlk.wd_Is_Primary_Job = 1
-                              AND cwlk.wd_Is_Position_Active = 1
-					) AS wd
-					WHERE wd.SOMSeq = 1
-				) AS uwd
-				    ON uwd.PROV_ID = date_dim.PROV_ID
+				LEFT OUTER JOIN CLARITY_App.Rptg.vwRef_Physcn_Combined physcn
+				    ON physcn.PROV_ID = date_dim.PROV_ID
 
 WHERE
       ((date_dim.day_date >= @slotstartdate) AND (date_dim.day_date < @slotenddate))
@@ -674,8 +543,8 @@ WHERE
 
 SELECT *
 FROM #RptgTable
-WHERE epic_department_id = 10244004
-AND provider_id = '62404'
+--WHERE epic_department_id = 10244004
+--AND provider_id = '62404'
 --ORDER BY date_dim.DEPARTMENT_ID
 --		,date_dim.PROV_ID
 --		,date_dim.day_date;
@@ -683,8 +552,12 @@ AND provider_id = '62404'
 --        ,event_count DESC
 --		,epic_department_id
 --		,provider_id;
+--ORDER BY event_count DESC
+--		,epic_department_id
+--		,provider_id
+--		,event_date;
 ORDER BY event_count DESC
-		,epic_department_id
+		,som_group_id
 		,provider_id
 		,event_date;
 

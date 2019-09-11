@@ -323,7 +323,7 @@ SELECT @in_somdeps = COALESCE(@in_somdeps+',' ,'') + CAST(SOMDepartmentId AS VAR
 FROM @SOMDepartment
 
 --SELECT @in_somdeps
-
+/*
 DECLARE @SOMDivision TABLE (SOMDivisionId VARCHAR(100))
 
 INSERT INTO @SOMDivision
@@ -399,6 +399,118 @@ SELECT @in_somdivs = COALESCE(@in_somdivs+',' ,'') + CAST(SOMDivisionId AS VARCH
 FROM @SOMDivision
 
 --SELECT @in_somdivs
+*/
+DECLARE @SOMDivision TABLE (SOMDivisionId int)
+
+INSERT INTO @SOMDivision
+(
+    SOMDivisionId
+)
+VALUES
+(0)--,--(All)
+--(14),--40445 MD-MICR Microbiology
+--(22),--40450 MD-MPHY Mole Phys & Biophysics
+--(30),--40415 MD-PBHS Public Health Sciences Admin
+--(48),--40700 MD-ANES Anesthesiology
+--(50),--40705 MD-DENT Dentistry
+--(52),--40710 MD-DERM Dermatology
+--(54),--40715 MD-EMED Emergency Medicine
+--(56),--40720 MD-FMED Family Medicine
+--(58),--40725 MD-INMD Int Med, Admin
+--(60),--40730 MD-INMD Allergy
+--(66),--40735 MD-INMD CV Medicine
+--(68),--40745 MD-INMD Endocrinology
+--(72),--40755 MD-INMD Gastroenterology
+--(74),--40760 MD-INMD Gen, Geri, Pall, Hosp
+--(76),--40761 MD-INMD Hospital Medicine
+--(80),--40770 MD-INMD Hem/Onc
+--(82),--40771 MD-INMD Community Oncology
+--(84),--40775 MD-INMD Infectious Dis
+--(86),--40780 MD-INMD Nephrology
+--(88),--40785 MD-INMD Pulmonary
+--(90),--40790 MD-INMD Rheumatology
+--(98),--40746 MD-INMD Advanced Diabetes Mgt
+--(101),--40800 MD-NERS Admin
+--(111),--40820 MD-NERS CV Disease
+--(113),--40830 MD-NERS Deg Spinal Dis
+--(115),--40835 MD-NERS Gamma Knife
+--(119),--40816 MD-NERS Minimally Invasive Spine
+--(121),--40840 MD-NERS Multiple Neuralgia
+--(123),--40825 MD-NERS Neuro-Onc
+--(127),--40810 MD-NERS Pediatric
+--(129),--40849 MD-NERS Pediatric Pituitary
+--(131),--40806 MD-NERS Radiosurgery
+--(138),--40850 MD-NEUR Neurology
+--(142),--40860 MD-OBGY Ob & Gyn, Admin
+--(144),--40865 MD-OBGY Gyn Oncology
+--(146),--40870 MD-OBGY Maternal Fetal Med
+--(148),--40875 MD-OBGY Reprod Endo/Infertility
+--(150),--40880 MD-OBGY Midlife Health
+--(152),--40885 MD-OBGY Northridge
+--(154),--40890 MD-OBGY Primary Care Center
+--(156),--40895 MD-OBGY Gyn Specialties
+--(158),--40897 MD-OBGY Midwifery
+--(163),--40900 MD-OPHT Ophthalmology
+--(166),--40910 MD-ORTP Ortho Surg, Admin
+--(168),--40915 MD-ORTP Adult Reconst
+--(178),--40930 MD-ORTP Foot/Ankle
+--(184),--40940 MD-ORTP Pediatric Ortho
+--(188),--40950 MD-ORTP Spine
+--(190),--40955 MD-ORTP Sports Med
+--(192),--40960 MD-ORTP Hand Surgery
+--(194),--40961 MD-ORTP Trauma
+--(197),--40970 MD-OTLY Oto, Admin
+--(201),--40980 MD-OTLY Audiology
+--(208),--41005 MD-PATH Surgical Path
+--(210),--41010 MD-PATH Clinical Pathology
+--(212),--41015 MD-PATH Neuropathology
+--(214),--41017 MD-PATH Research
+--(219),--41025 MD-PEDT Pediatrics, Admin
+--(223),--41035 MD-PEDT Cardiology
+--(225),--41040 MD-PEDT Critical Care
+--(227),--41045 MD-PEDT Developmental
+--(229),--41050 MD-PEDT Endocrinology
+--(233),--41056 MD-PEDT Bariatrics
+--(237),--41058 MD-PEDT Adolescent Medicine
+--(239),--41060 MD-PEDT Gastroenterology
+--(241),--41065 MD-PEDT General Pediatrics
+--(243),--41070 MD-PEDT Genetics
+--(245),--41075 MD-PEDT Hematology
+--(249),--41085 MD-PEDT Infectious Diseases
+--(251),--41090 MD-PEDT Neonatology
+--(253),--41095 MD-PEDT Nephrology
+--(257),--41105 MD-PEDT Pulmonary
+--(260),--41130 MD-PHMR Phys Med & Rehab
+--(262),--41140 MD-PLSR Plastic Surgery
+--(264),--41120 MD-PSCH Psychiatry and NB Sciences
+--(270),--41160 MD-RADL Radiology, Admin
+--(272),--41161 MD-RADL Community Division
+--(274),--41165 MD-RADL Angio/Interv
+--(276),--41166 MD-RADL Non-Invasive Cardio
+--(278),--41170 MD-RADL Breast Imaging
+--(280),--41175 MD-RADL Thoracoabdominal
+--(282),--41180 MD-RADL Musculoskeletal
+--(284),--41185 MD-RADL Neuroradiology
+--(286),--41186 MD-RADL Interventional Neuroradiology (INR)
+--(288),--41190 MD-RADL Nuclear Medicine
+--(290),--41195 MD-RADL Pediatric Rad
+--(295),--41150 MD-RONC Radiation Oncology
+--(297),--41210 MD-SURG Surgery, Admin
+--(310),--41250 MD-UROL Urology, Admin
+--(314),--41255 MD-UROL Urology, General
+--(327),--40480 MD-CDBT Ctr for Diabetes Tech
+--(331),--40530 MD-CPHG Ctr for Public Health Genomics
+--(373),--40204 MD-DMED School of Medicine Adm
+--(435),--40230 MD-DMED Curriculum
+--(435),--40250 MD-DMED Clin Performance Dev
+--(435),--40265 MD-DMED Med Ed Chief of Staff
+;
+
+SELECT @in_somdivs = COALESCE(@in_somdivs+',' ,'') + CAST(SOMDivisionId AS VARCHAR(MAX))
+FROM @SOMDivision
+
+--SELECT @in_somdivs
+
 
 --ALTER PROCEDURE [Rptg].[uspSrc_AmbOpt_NoShowRate_SSRS_Daily]
 --    (
@@ -430,18 +542,16 @@ FROM @SOMDivision
 -------------------------------------------------------------------------------------------------------------------------
 --INFO: 
 --      INPUTS:	DS_HSDM_App.Stage.Scheduled_Appointment
---              DS_HSDW_Prod.Rptg.vwDim_Clrt_SERsrc
---              DS_HSDW_Prod.Rptg.vwDim_Patient
---              DS_HSDW_Prod.Rptg.vwRef_MDM_Location_Master_EpicSvc
---              DS_HSDW_Prod.Rptg.vwRef_MDM_Location_Master
---              DS_HSDW_Prod.Rptg.vwDim_Physcn
---              DS_HSDW_Prod.Rptg.vwRef_Service_Line
---              DS_HSDW_Prod.Rptg.vwDim_Clrt_EMPlye
---              DS_HSDW_Prod.Rptg.vwDim_Clrt_EMPlye
---              DS_HSDM_App.Stage.AmbOpt_Excluded_Department
---              DS_HSDM_App.Rptg.vwRef_Crosswalk_HSEntity_Prov
---              DS_HSDM_App.Rptg.vwRef_SOM_Hierarchy
---              DS_HSDW_Prod.Rptg.vwDim_Date
+--				DS_HSDW_Prod.Rptg.vwDim_Clrt_SERsrc
+--				DS_HSDW_Prod.Rptg.vwDim_Patient
+--				DS_HSDW_Prod.Rptg.vwRef_MDM_Location_Master_EpicSvc
+--				DS_HSDW_Prod.Rptg.vwRef_MDM_Location_Master
+--				DS_HSDW_Prod.Rptg.vwDim_Physcn
+--				DS_HSDW_Prod.Rptg.vwRef_Service_Line
+--				DS_HSDW_Prod.Rptg.vwDim_Clrt_EMPlye
+--				DS_HSDM_App.Stage.AmbOpt_Excluded_Department
+--				DS_HSDW_Prod.Rptg.vwRef_Physcn_Combined
+--				DS_HSDW_Prod.Rptg.vwDim_Date
 --                
 --      OUTPUTS:  [Rptg].[uspSrc_AmbOpt_NoShowRate_SSRS_Daily]
 --
@@ -450,17 +560,11 @@ FROM @SOMDivision
 --         06/03/2019 - TMB - create stored procedure
 --         06/06/2019 - TMB - remove parameters/arguments logic
 --         06/12/2019 - TMB - edit logic: StartDate and EndDate arguments may not have time values
+--		   07/01/2019 - TMB - change logic for setting SOM hierarchy values: som_division_id (INT) => som_division_name_id (VARCHAR(150))
+--         07/02/2019 - TMB - restore column som_division_id
 --************************************************************************************************************************
 
     SET NOCOUNT ON;
-
-/*
----BDD 6/3/2019 per Tom don't need the defaults here. They will be set in SSRS 
-	----get default Balanced Scorecard date range
-IF @StartDate IS NULL
-   AND @EndDate IS NULL
-   EXEC ETL.usp_Get_Dash_Dates_BalancedScorecard @StartDate OUTPUT, @EndDate OUTPUT;
-*/ 
 
 -------------------------------------------------------------------------------
 DECLARE @locStartDate SMALLDATETIME,
@@ -609,6 +713,7 @@ SELECT
 	   evnts.som_department_id,
 	   evnts.som_department_name,
 	   evnts.som_division_id,
+	   evnts.som_division_name_id,
 	   evnts.som_division_name,
 	   evnts.som_division_5,
 	   evnts.som_hs_area_id,
@@ -821,11 +926,11 @@ FROM
 			main.som_department_id,
 			main.som_department_name,
 			main.som_division_id,
+	        main.som_division_name_id,
 			main.som_division_name,
 			main.som_division_5,
 			main.som_hs_area_id,
 			main.som_hs_area_name,
-
 			main.Load_Dtm
 
         FROM
@@ -902,20 +1007,21 @@ FROM
 				   -- Loc
 				   mdmloc.LOC_ID AS rev_location_id,
 				   mdmloc.REV_LOC_NAME AS rev_location,
-				   -- SOM
-         		   uwd.Clrt_Financial_Division AS financial_division_id,
-				   CAST(uwd.Clrt_Financial_Division_Name AS VARCHAR(150)) AS financial_division_name,
-				   uwd.Clrt_Financial_SubDivision AS financial_sub_division_id, 
-				   uwd.Clrt_Financial_SubDivision_Name AS financial_sub_division_name,
-				   uwd.SOM_Group_ID AS som_group_id,
-				   uwd.SOM_group AS som_group_name,
-				   uwd.SOM_department_id AS som_department_id,
-				   uwd.SOM_department AS som_department_name,
-				   uwd.SOM_division_id AS som_division_id,
-				   uwd.SOM_division_name AS som_division_name,
-				   uwd.SOM_division_5 AS som_division_5,
-				   CASE WHEN uwd.SOM_Group_ID IS NULL THEN CAST(NULL AS SMALLINT) ELSE CAST(3 AS SMALLINT) END AS som_hs_area_id,
-				   CASE WHEN uwd.SOM_Group_ID IS NULL THEN CAST(NULL AS VARCHAR(150)) ELSE CAST('School of Medicine' AS VARCHAR(150)) END AS som_hs_area_name,
+				   -- SOM			   
+				   physcn.Clrt_Financial_Division AS financial_division_id,
+				   physcn.Clrt_Financial_Division_Name AS financial_division_name,
+				   physcn.Clrt_Financial_SubDivision AS	financial_sub_division_id,
+				   physcn.Clrt_Financial_SubDivision_Name AS financial_sub_division_name,
+				   physcn.SOM_Group_ID AS som_group_id,
+				   physcn.SOM_group AS som_group_name,
+				   physcn.SOM_department_id AS som_department_id,
+				   physcn.SOM_department AS	som_department_name,
+				   physcn.SOM_division_id AS som_division_id,
+				   physcn.SOM_division_name_id AS som_division_name_id,
+				   physcn.SOM_division_name AS som_division_name,
+				   physcn.SOM_division_5 AS	som_division_5,
+				   physcn.som_hs_area_id AS	som_hs_area_id,
+				   physcn.som_hs_area_name AS som_hs_area_name,
 				   appts.Load_Dtm
 
             FROM Stage.Scheduled_Appointment AS appts
@@ -968,59 +1074,8 @@ FROM
                 -- -------------------------------------
                 -- SOM Hierarchy--
                 -- -------------------------------------
-	            LEFT OUTER JOIN
-	            (
-					SELECT DISTINCT
-					    wd.sk_Dim_Physcn,
-						wd.PROV_ID,
-             			wd.Clrt_Financial_Division,
-			    		wd.Clrt_Financial_Division_Name,
-						wd.Clrt_Financial_SubDivision, 
-					    wd.Clrt_Financial_SubDivision_Name,
-					    wd.wd_Dept_Code,
-					    wd.SOM_Group_ID,
-					    wd.SOM_Group,
-						wd.SOM_department_id,
-					    wd.SOM_department,
-						wd.SOM_division_id,
-						wd.SOM_division_name,
-						wd.SOM_division_5
-					FROM
-					(
-					    SELECT
-						    cwlk.sk_Dim_Physcn,
-							cwlk.PROV_ID,
-             			    cwlk.Clrt_Financial_Division,
-			    		    cwlk.Clrt_Financial_Division_Name,
-						    cwlk.Clrt_Financial_SubDivision, 
-							cwlk.Clrt_Financial_SubDivision_Name,
-							cwlk.wd_Dept_Code,
-							som.SOM_Group_ID,
-							som.SOM_Group,
-							som.SOM_department_id,
-							som.SOM_department,
-							som.SOM_division_id,
-							som.SOM_division_name,
-							som.SOM_division_5,
-							ROW_NUMBER() OVER (PARTITION BY cwlk.sk_Dim_Physcn ORDER BY som.som_group_id ASC) AS [SOMSeq]
-						FROM Rptg.vwRef_Crosswalk_HSEntity_Prov AS cwlk
-						    LEFT OUTER JOIN (SELECT DISTINCT
-							                     SOM_Group_ID,
-												 SOM_Group,
-												 SOM_department_id,
-												 SOM_department,
-												 SOM_division_id,
-												 SOM_division_name,
-												 SOM_division_5
-						                     FROM Rptg.vwRef_SOM_Hierarchy
-						                    ) AS som
-						        ON cwlk.wd_Dept_Code = som.SOM_division_5
-					    WHERE cwlk.wd_Is_Primary_Job = 1
-                              AND cwlk.wd_Is_Position_Active = 1
-					) AS wd
-					WHERE wd.SOMSeq = 1
-				) AS uwd
-				    ON uwd.sk_Dim_Physcn = doc.sk_Dim_Physcn
+				LEFT OUTER JOIN DS_HSDW_Prod.Rptg.vwRef_Physcn_Combined physcn
+				    ON physcn.sk_Dim_Physcn = doc.sk_Dim_Physcn
 
             WHERE (appts.APPT_DT >= @locStartDate
               AND appts.APPT_DT < @locEndDate)
@@ -1071,9 +1126,7 @@ WHERE ((evnts.appt_event_Canceled = 0)
           OR (evnts.som_division_id IN (SELECT som_division_id FROM @tab_somdivs))
       )
 
---ORDER BY date_dim.day_date;
-ORDER BY [No Show] DESC
-       , date_dim.day_date;
+ORDER BY date_dim.day_date;
 
 GO
 
