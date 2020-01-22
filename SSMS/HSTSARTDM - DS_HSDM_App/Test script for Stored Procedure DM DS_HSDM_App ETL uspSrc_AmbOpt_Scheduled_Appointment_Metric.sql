@@ -10,13 +10,14 @@ GO
 DECLARE @startdate SMALLDATETIME
        ,@enddate SMALLDATETIME
 
-SET @startdate = NULL
-SET @enddate = NULL
+--SET @startdate = NULL
+--SET @enddate = NULL
 --SET @startdate = '2/1/2019 00:00 AM'
 --SET @enddate = '3/4/2019 11:59 PM'
 --SET @startdate = '7/1/2017 00:00 AM'
---SET @startdate = '7/1/2018 00:00 AM'
---SET @enddate = '9/30/2018 11:59 PM'
+--SET @startdate = '1/1/2018 00:00 AM'
+SET @startdate = '7/1/2019 00:00 AM'
+SET @enddate = '6/30/2020 11:59 PM'
 
 --ALTER PROCEDURE [ETL].[uspSrc_AmbOpt_Scheduled_Appointment_Metric]
 --    (
@@ -53,7 +54,7 @@ SET @enddate = NULL
 --              SUM(appt_event_Completed = 1 AND appt_event_New_to_Specialty = 1 AND Appointment_Lag_Days >= 0)
 --
 -- Total Visits
---				SUM(appt_event_Completed = 1 OR appt_event_Arrived = 1)
+--				SUM(appt_event_Completed = 1)
 --
 -- Average Visit Time
 --				SUM(CASE WHEN (appt_event_Completed = 1 OR appt_event_Arrived = 1) THEN CYCLE_TIME_MINUTES_Adjusted ELSE 0 END)
@@ -110,7 +111,6 @@ SET @enddate = NULL
 --         07/29/2019 - TMB - add column BILL_PROV_YN
 --         08/07/2019 - TMB - edit Appointment_Lag_Business_Days calculation: exclude holidays from business days classification;
 --                            change documentation defining Bump Rate calculation
---         08/14/2019 - TMB - change documentation defining Completed Visits calculation
 --************************************************************************************************************************
 
     SET NOCOUNT ON;
@@ -130,8 +130,11 @@ SET @locenddate   = @enddate
 IF OBJECT_ID('tempdb..#metric ') IS NOT NULL
 DROP TABLE #metric
 
-IF OBJECT_ID('tempdb..#canclate ') IS NOT NULL
-DROP TABLE #canclate
+IF OBJECT_ID('tempdb..#metric2 ') IS NOT NULL
+DROP TABLE #metric2
+
+--IF OBJECT_ID('tempdb..#canclate ') IS NOT NULL
+--DROP TABLE #canclate
 
 IF OBJECT_ID('tempdb..#bump ') IS NOT NULL
 DROP TABLE #bump
@@ -741,38 +744,132 @@ FROM
 WHERE date_dim.day_date >= @locstartdate
       AND date_dim.day_date < @locenddate
 
+ORDER BY date_dim.day_date;
+
 --ORDER BY date_dim.day_date;
 
---SELECT day_date
---     , date_key
---	 , day_of_week_num
---	 , day_of_week
---	 , weekday_ind
---FROM DS_HSDW_Prod.Rptg.vwDim_Date
---ORDER BY day_date
+/*SELECT [sk_Dash_AmbOpt_ScheduledAppointmentMetric_Tiles]
+       , [event_date], [epic_department_id]
+	   , [epic_department_name]
+	   , [epic_department_name_external]
+	   , [fmonth_num]
+       , [fyear_num]
+       , [fyear_name]
+       , [report_period]
+       , [sk_Dim_Pt]
+       , [sk_Fact_Pt_Acct]
+       , [sk_Fact_Pt_Enc_Clrt]
+       , [person_birth_date]
+       , [person_gender]
+       , [person_id]
+       , [person_name]
+       , [provider_id]
+       , [provider_name]
+       , [service_line]
+       , [sub_service_line]
+       , [opnl_service_name]
+       , [corp_service_line_name]
+       , [hs_area_name]
+       , [pod_name]
+       , [hub_name]
+       , [w_service_line_name]
+       , [w_sub_service_line_name]
+       , [w_opnl_service_name]
+       , [w_corp_service_line_name]
+       , [w_hs_area_name]
+       , [prov_service_line_name]
+       , [prov_hs_area_name]
+       , [APPT_STATUS_FLAG]
+       , [APPT_STATUS_C]
+       , [CANCEL_REASON_C]
+       , [MRN_int]
+       , [CONTACT_DATE]
+       , [APPT_DT]
+       , [PAT_ENC_CSN_ID]
+       , [PRC_ID]
+       , [PRC_NAME]
+       , [sk_Dim_Physcn]
+       , [UVaID]
+       , [VIS_NEW_TO_SYS_YN]
+       , [VIS_NEW_TO_DEP_YN]
+       , [VIS_NEW_TO_PROV_YN]
+       , [VIS_NEW_TO_SPEC_YN]
+       , [VIS_NEW_TO_SERV_AREA_YN]
+       , [VIS_NEW_TO_LOC_YN]
+       , [APPT_MADE_DATE]
+       , [ENTRY_DATE]
+       , [CHECKIN_DTTM]
+       , [CHECKOUT_DTTM]
+       , [VISIT_END_DTTM]
+       , [CYCLE_TIME_MINUTES]
+       , CASE WHEN appt_event_Canceled = 0 OR appt_event_Canceled_Late = 1 OR (appt_event_Provider_Canceled = 1 AND Cancel_Lead_Days <= 45) THEN 1 ELSE 0 END AS [Appointment]
+       , CASE WHEN appt_event_Provider_Canceled = 1  AND Cancel_Lead_Days <= 45 THEN 1 ELSE 0 END AS [Bump]
+       , [Cancel_Lead_Days]
+       , [appt_event_Provider_Canceled]
+       , [appt_event_No_Show]
+       , [appt_event_Canceled_Late]
+       , [appt_event_Scheduled]
+       , [appt_event_Completed]
+       , [appt_event_Arrived]
+       , [appt_event_New_to_Specialty]
+       , [Appointment_Lag_Days]
+       , [CYCLE_TIME_MINUTES_Adjusted]
+       , [APPT_DTTM]
+       , [CANCEL_INITIATOR]
+       , [CANCEL_REASON_NAME]
+       , [CANCEL_LEAD_HOURS]
+       , [APPT_CANC_DTTM]
+       , [Entry_UVaID]
+       , [Canc_UVaID]
+       , [PHONE_REM_STAT_NAME]
+       , [Load_Dtm]
+       , [BILL_PROV_YN]
+       , [Staff_Resource]
+       , [Prov_Typ]
+  FROM [TabRptg].[Dash_AmbOpt_ScheduledAppointmentMetric_Tiles]
+  WHERE ((event_count = 1) AND ((appt_event_Canceled = 0) OR ((appt_event_Canceled_Late = 1) OR (appt_event_Provider_Canceled = 1))))
+  AND (event_date BETWEEN @ApptStartDate AND @ApptEndDate)
+  AND CAST(epic_department_id AS VARCHAR(18)) IN (@DepartmentId)
+  AND provider_id IN (@ProviderId)
+  AND COALESCE(" & Parameters!DepartmentGrouperColumn.Value & ",'" & Parameters!DepartmentGrouperNoValue.Value & "') IN (@PodServiceLine);
+*/
 
-SELECT event_type,
-       metric.epic_department_name,
-       event_count,
-	   event_date,
-       APPT_MADE_DATE,
-       ENTRY_DATE,
-       CHANGE_DATE,
-	   Appointment_Request_Date,
-       APPT_DT,
-	   Appointment_Lag_Days,
-	   Appointment_Lag_Business_Days,
-	   --ddte1.day_of_week AS APPT_MADE_DATE_dow,
-	   --ddte2.day_of_week AS ENTRY_DATE_dow,
-	   --ddte3.day_of_week AS CHANGE_DATE_dow,
-	   --ddte4.day_of_week AS APPT_DT_dow,
-       APPT_STATUS_FLAG,
-       APPT_STATUS_C,
-       CONTACT_DATE,
-       PAT_ENC_CSN_ID,
-       VIS_NEW_TO_SPEC_YN,
-	   metric.BILL_PROV_YN
 --SELECT *
+SELECT metric.APPT_SERIAL_NUM,
+       metric.RESCHED_APPT_CSN_ID,
+       metric.Appointment_Request_Date,
+       metric.Appointment_Lag_Days,
+       metric.Appointment_Lag_Business_Days,
+	   metric.event_type,
+       metric.event_count,
+	   CASE WHEN appt_event_Canceled = 0 OR appt_event_Canceled_Late = 1 OR (appt_event_Provider_Canceled = 1 AND Cancel_Lead_Days <= 45) THEN 1 ELSE 0 END AS [Appointment],
+	   CASE WHEN metric.appt_event_Provider_Canceled = 1 AND metric.Cancel_Lead_Days <= 45 THEN 1 ELSE 0 END AS Bump,
+       metric.APPT_MADE_DTTM,
+       metric.CANCEL_INITIATOR,
+       metric.APPT_CANC_DTTM,
+       metric.Cancel_Lead_Days,
+       metric.event_date,
+       --metric.epic_department_id,
+       --metric.epic_department_name,
+       --metric.epic_department_name_external,
+       metric.APPT_STATUS_FLAG,
+       metric.APPT_STATUS_C,
+       metric.CANCEL_REASON_C,
+       metric.APPT_DT,
+       metric.PAT_ENC_CSN_ID,
+       metric.appt_event_No_Show,
+       metric.appt_event_Canceled_Late,
+       metric.appt_event_Canceled,
+       metric.appt_event_Scheduled,
+       metric.appt_event_Provider_Canceled,
+       metric.appt_event_Completed,
+       metric.appt_event_Arrived,
+       metric.appt_event_New_to_Specialty,
+       metric.APPT_DTTM,
+       metric.ENC_TYPE_C,
+       metric.ENC_TYPE_TITLE,
+       metric.BILL_PROV_YN
+INTO #metric2
 --SELECT DISTINCT
 --	metric.Prov_Typ
 FROM #metric metric
@@ -792,11 +889,31 @@ FROM #metric metric
 --OR (ddte3.day_of_week IN ('Saturday','Sunday'))
 --OR (ddte4.day_of_week IN ('Saturday','Sunday')))
 --WHERE appt_event_Canceled = 0 OR appt_event_Canceled_Late = 1 OR (appt_event_Provider_Canceled = 1 AND Cancel_Lead_Days <= 45)
+--WHERE metric.event_count = 1 AND ((Prov_Typ = 'Fellow' OR Prov_Typ = 'Nurse Practitioner' OR Prov_Typ = 'Physician' OR Prov_Typ = 'Physician Assistant') AND (appt_event_Canceled = 0 OR appt_event_Canceled_Late = 1 OR (appt_event_Provider_Canceled = 1 AND Cancel_Lead_Days <= 45)))
+--WHERE metric.event_count = 1 AND ((Prov_Typ = 'Fellow' OR Prov_Typ = 'Nurse Practitioner' OR Prov_Typ = 'Physician' OR Prov_Typ = 'Physician Assistant') AND (appt_event_Canceled = 0 OR appt_event_Canceled_Late = 1 OR appt_event_Provider_Canceled = 1))
+WHERE metric.event_count = 1 AND (Prov_Typ = 'Fellow' OR Prov_Typ = 'Nurse Practitioner' OR Prov_Typ = 'Physician' OR Prov_Typ = 'Physician Assistant')
+
+--SELECT *
+--FROM #metric2
 --ORDER BY APPT_SERIAL_NUM
-ORDER BY event_date
---ORDER BY APPT_DT_dow
---ORDER BY ROW_NUMBER() OVER (PARTITION BY PAT_ENC_CSN_ID ORDER BY event_date) desc
---ORDER BY metric.Prov_Typ
+--       , APPT_MADE_DTTM
+----ORDER BY epic_department_id
+
+SELECT DISTINCT APPT_SERIAL_NUM
+FROM #metric2
+WHERE Appointment = 1
+ORDER BY APPT_SERIAL_NUM
+
+SELECT APPT_SERIAL_NUM
+     , SUM(CASE WHEN Bump = 1 THEN 1 ELSE 0 END) AS Bump
+FROM #metric2
+WHERE Appointment = 1
+GROUP BY APPT_SERIAL_NUM
+--HAVING SUM(CASE WHEN Bump = 1 THEN 1 ELSE 0 END) > 1
+--ORDER BY SUM(CASE WHEN Bump = 1 THEN 1 ELSE 0 END) DESC
+--       , APPT_SERIAL_NUM
+ORDER BY SUM(CASE WHEN Bump = 1 THEN 1 ELSE 0 END) DESC
+       , APPT_SERIAL_NUM
 /*
 SELECT
 	APPT_SERIAL_NUM

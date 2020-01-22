@@ -13,8 +13,10 @@ DECLARE @startdate SMALLDATETIME
 --SET @startdate = NULL
 --SET @enddate = NULL
 
-SET @startdate = '2/1/2019 00:00'
-SET @enddate = '2/28/2019 23:59'
+--SET @startdate = '2/1/2019 00:00'
+--SET @enddate = '2/28/2019 23:59'
+SET @startdate = '7/1/2019 00:00:00'
+SET @enddate = '12/31/2019 23:59:59'
 
 --ALTER PROCEDURE [ETL].[uspSrc_AmbOpt_CGCAHPS_RecommendProvOffice]
 --    (
@@ -24,7 +26,7 @@ SET @enddate = '2/28/2019 23:59'
 --AS 
 
 /**********************************************************************************************************************
-WHAT: Ambulatory Optimization Reporting:  CGCAHPS Recommend Provider Office
+WHAT: Ambulatory Optimization Reporting:  CGCAHPS Recommend Provider Office (Metric Id 289)
 WHO : Tom Burgan
 WHEN: 4/4/2018
 WHY : Press Ganey CGCAHPS results for survey question:
@@ -60,6 +62,7 @@ MODS:
       05/10/2019 - TMB - edit logic to resolve issue resulting from multiple primary, active wd jobs for a provider;
                          add place-holder columns for w_som_hs_area_id (SMALLINT) and w_som_hs_area_name (VARCHAR(150))
 	  07/08/2019 - TMB - change logic for setting SOM hierarchy values; change data type of som_division_id
+	  01/13/2020 - TMB - edit logic that assigns Epic Provider Id to a survey response
 **************************************************************************************************************************************************************/
    
     SET NOCOUNT ON; 
@@ -119,6 +122,9 @@ DROP TABLE #RptgTemp
 		   ,pm.pod_name
            ,pm.hub_id
 		   ,pm.hub_name
+
+		   ,pm.sk_Dim_Clrt_DEPt
+
            ,pm.epic_department_id
            ,pm.epic_department_name
            ,pm.epic_department_name_external
@@ -128,6 +134,9 @@ DROP TABLE #RptgTemp
            ,CASE WHEN tx.PAT_ENC_CSN_ID IS NOT NULL THEN 1
                  ELSE 0
             END AS transplant
+						
+		   ,pm.resp_sk_Dim_Physcn
+
 		   ,pm.sk_Dim_Physcn
 		   ,pm.BUSINESS_UNIT
 		   ,pm.Prov_Typ
@@ -142,11 +151,13 @@ DROP TABLE #RptgTemp
 		   ,pm.financial_sub_division_name
 		   ,pm.som_department_id
 		   ,pm.som_department_name
-		   ,pm.som_division_id
+		   ,pm.som_division_id -- int
 		   ,pm.som_division_name
 		   ,pm.som_hs_area_id
 		   ,pm.som_hs_area_name
+
 	INTO #RptgTemp
+
     FROM    DS_HSDW_Prod.Rptg.vwDim_Date AS rec
     LEFT OUTER JOIN
 	(
@@ -188,7 +199,16 @@ DROP TABLE #RptgTemp
 				,pat.BirthDate AS BIRTH_DATE
 				,pat.SEX
 				,resp.Load_Dtm
-				,dp.sk_Dim_Physcn
+				
+				,resp.Pat_Enc_CSN_Id
+				,resp.sk_Dim_Physcn AS resp_sk_Dim_Physcn				,CASE WHEN resp.[sk_Dim_Physcn] > 0 THEN resp.sk_Dim_Physcn
+				      WHEN dschatn.[sk_Dim_Physcn] > 0 THEN dschatn.sk_Dim_Physcn
+				      WHEN resp.sk_Dim_Physcn = -1 THEN -999
+				      WHEN resp.sk_Dim_Physcn = 0 THEN -999
+				      ELSE -999
+				 END AS sk_Dim_Physcn
+
+				--,dp.sk_Dim_Physcn
 				,loc_master.BUSINESS_UNIT
 				,prov.Prov_Typ
 				,prov.Staff_Resource
@@ -206,22 +226,48 @@ DROP TABLE #RptgTemp
 				,physcn.SOM_division_5 AS	som_division_id
 				,physcn.SOM_division_name AS som_division_name
 				,physcn.som_hs_area_id AS	som_hs_area_id
-				,physcn.som_hs_area_name AS som_hs_area_name
-				
-		FROM    DS_HSDW_Prod.Rptg.vwFact_PressGaney_Responses AS resp
+				,physcn.som_hs_area_name AS som_hs_area_name				
+		--FROM    DS_HSDW_Prod.Rptg.vwFact_PressGaney_Responses AS resp
+
+		FROM    DS_HSDW_Prod.dbo.Fact_PressGaney_Responses AS resp
+
 		INNER JOIN DS_HSDW_Prod.Rptg.vwDim_PG_Question AS qstn
 				ON resp.sk_Dim_PG_Question=qstn.sk_Dim_PG_Question
 		INNER JOIN DS_HSDW_Prod.Rptg.vwFact_Pt_Acct AS fpa
 				ON resp.sk_Fact_Pt_Acct=fpa.sk_Fact_Pt_Acct
 		INNER JOIN DS_HSDW_Prod.Rptg.vwDim_Patient AS pat
 				ON fpa.sk_Dim_Pt=pat.sk_Dim_Pt
-		LEFT OUTER JOIN (SELECT sk_Dim_Physcn
-		                 FROM DS_HSDW_Prod.Rptg.vwDim_Physcn
-						 WHERE current_flag = 1) AS dp
-				ON fpa.sk_Phys_Atn=dp.sk_Dim_Physcn
+		--LEFT OUTER JOIN (SELECT sk_Dim_Physcn
+		--                 FROM DS_HSDW_Prod.Rptg.vwDim_Physcn
+		--				 WHERE current_flag = 1) AS dp
+		--		ON fpa.sk_Phys_Atn=dp.sk_Dim_Physcn
+
+		
+		  LEFT OUTER JOIN (SELECT PAT_ENC_CSN_ID
+								, sk_Dim_Clrt_SERsrc
+								, sk_Dim_Physcn
+								, ROW_NUMBER() OVER (PARTITION BY sk_Fact_Pt_Enc_Clrt ORDER BY Atn_Beg_Dtm DESC, CASE
+																												   WHEN Atn_End_Dtm = '1900-01-01' THEN GETDATE()
+																												   ELSE Atn_End_Dtm
+																												 END DESC) AS 'Atn_Seq'
+						   FROM DS_HSDW_Prod.Rptg.vwFact_Pt_Enc_Atn_Prov_All
+						   WHERE Atn_End_Dtm = '1900-01-01' OR Atn_End_Dtm >= '1/1/2018 00:00:00') AS dschatn
+			    ON (dschatn.PAT_ENC_CSN_ID = resp.Pat_Enc_CSN_Id) AND dschatn.Atn_Seq = 1
+
+		--LEFT OUTER JOIN [DS_HSDW_Prod].[Rptg].[vwDim_Clrt_SERsrc] prov
+		--		--provider table
+		--		ON CASE dp.[sk_Dim_Physcn] WHEN '-1' THEN '-999' WHEN '0' THEN '-999' ELSE dp.sk_Dim_Physcn END =prov.[sk_Dim_Physcn] -- multiple sk_dim_phys of -1 and 0 in SERsrc
+		
 		LEFT OUTER JOIN [DS_HSDW_Prod].[Rptg].[vwDim_Clrt_SERsrc] prov
 				--provider table
-				ON CASE dp.[sk_Dim_Physcn] WHEN '-1' THEN '-999' WHEN '0' THEN '-999' ELSE dp.sk_Dim_Physcn END =prov.[sk_Dim_Physcn] -- multiple sk_dim_phys of -1 and 0 in SERsrc
+		--		ON CASE dp.[sk_Dim_Physcn] WHEN '-1' THEN '-999' WHEN '0' THEN '-999' ELSE dp.sk_Dim_Physcn END = prov.[sk_Dim_Physcn] -- multiple sk_dim_phys of -1 and 0 in SERsrc
+				ON CASE WHEN resp.[sk_Dim_Physcn] > 0 THEN resp.sk_Dim_Physcn
+				        WHEN dschatn.[sk_Dim_Physcn] > 0 THEN dschatn.sk_Dim_Physcn
+						WHEN resp.sk_Dim_Physcn = -1 THEN -999
+						WHEN resp.sk_Dim_Physcn = 0 THEN -999
+						ELSE -999
+				   END = prov.[sk_Dim_Physcn] -- multiple sk_dim_phys of -1 and 0 in SERsrc
+
 		LEFT OUTER JOIN
 			(
 				SELECT SURVEY_ID, CAST(MAX(VALUE) AS VARCHAR(500)) AS AGE
@@ -256,11 +302,19 @@ DROP TABLE #RptgTemp
                 -- SOM Hierarchy--
                 -- -------------------------------------
 				LEFT OUTER JOIN DS_HSDW_Prod.Rptg.vwRef_Physcn_Combined physcn
-				    ON physcn.sk_Dim_Physcn = dp.sk_Dim_Physcn
+				    --ON physcn.sk_Dim_Physcn = dp.sk_Dim_Physcn
+				    ON physcn.sk_Dim_Physcn = CASE
+					                            WHEN resp.[sk_Dim_Physcn] > 0 THEN resp.sk_Dim_Physcn
+												WHEN dschatn.[sk_Dim_Physcn] > 0 THEN dschatn.sk_Dim_Physcn
+												WHEN resp.sk_Dim_Physcn = -1 THEN -999
+												WHEN resp.sk_Dim_Physcn = 0 THEN -999
+												ELSE -999
+										      END
 		WHERE   resp.Svc_Cde='MD' AND resp.sk_Dim_PG_Question IN ('805') -- Would you recommend this provider's office to your family and friends?
 				AND resp.RECDATE>=@locstartdate
 				AND resp.RECDATE<@locenddate
 				AND excl.DEPARTMENT_ID IS NULL
+				AND resp.sk_Dim_Clrt_DEPt = 1067
 	) AS pm
 ON rec.day_date=pm.RECDATE
 
@@ -289,16 +343,27 @@ ON rec.day_date=pm.RECDATE
 
     WHERE   rec.day_date>=@locstartdate
             AND rec.day_date<@locenddate
-
-    --ORDER BY rec.day_date;
+			AND pm.RECDATE IS NOT NULL
 
 	SELECT *
 	FROM #RptgTemp
-
-    --ORDER BY event_date;
-    --ORDER BY provider_name
+	WHERE event_date BETWEEN '7/1/2019 00:00 AM' AND '12/31/2019 11:59 PM'
+    --ORDER BY rec.day_date;
+    --ORDER BY pm.sk_Dim_Clrt_DEPt
+	   --    , pm.resp_sk_Dim_Physcn
+	   --    , rec.day_date;
+    --ORDER BY pm.resp_sk_Dim_Physcn
+	   --    , pm.sk_Dim_Physcn
+	   --    , rec.day_date;
+    --ORDER BY resp_sk_Dim_Physcn
+	   --    , sk_Dim_Physcn
 	   --    , event_date;
-    ORDER BY sk_Dim_Physcn;
+    ORDER BY event_category
+	       , resp_sk_Dim_Physcn
+	       , sk_Dim_Physcn
+	       , event_date;
+	--ORDER BY som_department_name DESC
+	--       , event_date
 
 GO
 

@@ -9,13 +9,13 @@ GO
 
 DECLARE @startdate DATETIME
 
--- ALTER PROCEDURE [ETL].[uspRefresh_Scheduled_Appointment]
+--ALTER PROCEDURE [ETL].[uspRefresh_Scheduled_Appointment]
 --(
 --@startdate DATETIME=NULL
 --)
 --AS
 /****************************************************************************************************************************************
-WHAT: Create procedure ETL.uspRefresh_Scheduled_Appointment
+WHAT: Create procedure etl.uspRefresh_Scheduled_Appointment
       originally ETL.uspLoad_Scheduled_Appointment
 WHO : Tom Burgan
 WHEN: 11/29/2017
@@ -42,6 +42,7 @@ INFO:
 				CLARITY.dbo.CLARITY_SER_SPEC
 				CLARITY.dbo.REFERRAL_HIST
 				CLARITY.dbo.PROV_ATTR_INFO_OT
+				CLARITY_App.Rptg.vwCLARITY_SER_OT_PROV_TYPE
 				CLARITY.dbo.ZC_MYCHART_STATUS
 				CLARITY.dbo.ZC_RFL_STATUS
 				CLARITY.dbo.ZC_RFL_TYPE
@@ -63,7 +64,7 @@ INFO:
 				CLARITY.dbo.ZC_CENTER
 				CLARITY.dbo.ZC_APPT_CONF_STAT
                   
-      OUTPUTS:  CLARITY_App.ETL.uspRefresh_Scheduled_Appointment
+      OUTPUTS:  CLARITY_App.ETL.uspLoad_Scheduled_Appointment
    
 ----------------------------------------------------------------------------------------------------------------------------------------
 MODS: 	11/29/2017--TMB--Create stored procedure
@@ -82,9 +83,10 @@ MODS: 	11/29/2017--TMB--Create stored procedure
         05/21/2019 -BDD New version to do daily refresh of updated schedule rows instead of trunc and replace of 2 years worth. 
 						Stripped out V_SCHED_APPT into component tables, copied select assemblies from the view code 
 						Changed some large derived table joins into regular joins
-						Eliminated outer Select
+						Eliminated outer Select	
 						
-		06/28/2019--TMB--Add BILL_PROV_YN	       
+		07/25/2019--TMB--Add BILL_PROV_YN (INTEGER)
+		01/17/2020--TMB--Add PROV_TYPE_OT_NAME (VARCHAR(254))         
 
 *****************************************************************************************************************************************/
 
@@ -93,29 +95,31 @@ SET NOCOUNT ON;
 
 DECLARE @currdate DATETIME,
         @loclastupdate DATETIME,
-		@enddate DATETIME,																																	-- ******* --
-		@locenddate DATETIME																																-- ******* --
+		@enddate DATETIME,
+		@locenddate DATETIME
 
 SET @currdate = CAST(CAST(GETDATE() AS DATE) AS DATETIME) 
 -------------------------------------------------------------------------------
- ---go back a week for safety in case of null pass
+ ---go back a few days for safety in case of null pass
 IF @startdate IS NULL 
-   SET @startdate = DATEADD(dd,-7,@currdate)
+   SET @startdate = DATEADD(dd,-3,@currdate)
 
- ---end of current fiscal year for setting default for CONTACT_TO_DATE values that are null																	-- ******* --
-SET @enddate = CASE WHEN DATEPART(mm, @currdate)<7																											-- ******* --
-	                THEN CAST('07/01/'+CAST(DATEPART(yy, @currdate) AS CHAR(4)) AS DATETIME)																-- ******* --
-                    ELSE CAST('07/01/'+CAST(DATEPART(yy, @currdate)+1 AS CHAR(4)) AS DATETIME)																-- ******* --
-               END;																																			-- ******* --
-
+ ---end of current fiscal year for setting default for CONTACT_TO_DATE values that are null
+SET @enddate = CASE WHEN DATEPART(mm, @currdate)<7
+	                THEN CAST('07/01/'+CAST(DATEPART(yy, @currdate) AS CHAR(4)) AS DATETIME)
+                    ELSE CAST('07/01/'+CAST(DATEPART(yy, @currdate)+1 AS CHAR(4)) AS DATETIME)
+               END;	
+			   
  --temp set for testing
 SET @loclastupdate = @startdate
 SET @locenddate = @enddate
 
 ------------------------------------------------------------------------------------------------------
 
+
 /*  All scheduled appointments with patient, MyChart, encounter, department, insurance, and referral detail  */
-          SELECT 
+
+          SELECT DISTINCT            ---BDD 8/22/2019 added distinct to counteract July change dupe rows
 
 			--patient info
                     F_SCHED_APPT.PAT_ENC_CSN_ID , 
@@ -144,7 +148,7 @@ SET @locenddate = @enddate
 
                     F_SCHED_APPT.APPT_BLOCK_C ,
 
-                    CASE
+                    CAST(CASE
                      WHEN F_SCHED_APPT.APPT_BLOCK_C IS NULL THEN NULL
                        ELSE COALESCE(zcblock.NAME,
                                                   CASE
@@ -153,12 +157,12 @@ SET @locenddate = @enddate
                                                    ELSE '*Unnamed block'
                                                    END + ' [' + CONVERT(VARCHAR(254), F_SCHED_APPT.appt_block_c) + ']'
                                     )
-                    END    AS APPT_BLOCK_NAME ,
+                    END AS VARCHAR(254))   AS APPT_BLOCK_NAME ,
 
                     F_SCHED_APPT.APPT_LENGTH ,
                     F_SCHED_APPT.APPT_STATUS_C ,
 
-                    CASE 
+                    CAST(CASE 
                         WHEN F_SCHED_APPT.APPT_STATUS_C = 1 AND F_SCHED_APPT.SIGNIN_DTTM IS NOT NULL THEN 'Present'
                         WHEN zcappt.NAME IS NOT NULL THEN zcappt.NAME
                         ELSE 
@@ -166,12 +170,12 @@ SET @locenddate = @enddate
                               WHEN zcappt.APPT_STATUS_C IS NULL THEN '*Unknown status'
                               ELSE '*Unnamed status'
                               END + ' [' + CONVERT(VARCHAR(254), F_SCHED_APPT.APPT_STATUS_C) + ']'
-                    END AS APPT_STATUS_NAME,
+                    END AS VARCHAR(254)) AS APPT_STATUS_NAME,
 
                     F_SCHED_APPT.APPT_CONF_STAT_C ,
                     DATEDIFF(MINUTE, F_SCHED_APPT.APPT_CANC_DTTM, F_SCHED_APPT.APPT_DTTM) / 60 AS CANCEL_LEAD_HOURS ,
 
-                    CASE
+                    CAST(CASE
 					  WHEN F_SCHED_APPT.CANCEL_REASON_C IS NULL THEN NULL
 					  WHEN canc.CANCEL_REASON_C IS NULL THEN '*Unknown cancel reason [' + CONVERT(VARCHAR(55), F_SCHED_APPT.cancel_reason_c) + ']'
 					  WHEN (SELECT COUNT(PAT_INIT_CANC_C) FROM CLARITY.dbo.PAT_INIT_CANC 
@@ -179,14 +183,15 @@ SET @locenddate = @enddate
 					  WHEN (SELECT COUNT(PROV_INIT_CANC_C) FROM CLARITY.dbo.PROV_INIT_CANC 
 							WHERE PROV_INIT_CANC_C=canc.CANCEL_REASON_C) >= 1 THEN 'PROVIDER'
 					  ELSE 'OTHER'
-				    END AS CANCEL_INITIATOR ,
+				    END AS VARCHAR(55)) AS CANCEL_INITIATOR ,
 
                     CASE WHEN F_SCHED_APPT.APPT_STATUS_C IN (2) THEN 'Y' ELSE 'N' END AS COMPLETED_STATUS_YN ,
 
                     F_SCHED_APPT.SAME_DAY_YN ,
                     F_SCHED_APPT.SAME_DAY_CANC_YN ,
                     F_SCHED_APPT.CANCEL_REASON_C ,
-                    CASE
+                    
+					CAST(CASE
                       WHEN F_SCHED_APPT.CANCEL_REASON_C IS NULL 
 					       THEN NULL
 							ELSE COALESCE(canc.NAME,
@@ -196,7 +201,7 @@ SET @locenddate = @enddate
 							                  ELSE '*Unnamed cancel reason'
 						                   END + ' [' + CONVERT(VARCHAR(254), F_SCHED_APPT.cancel_reason_c) + ']'
 					                      )  
-					END AS CANCEL_REASON_NAME ,
+					END AS VARCHAR(254)) AS CANCEL_REASON_NAME ,
 
                     F_SCHED_APPT.WALK_IN_YN ,
                     F_SCHED_APPT.OVERBOOKED_YN ,
@@ -206,7 +211,7 @@ SET @locenddate = @enddate
                     F_SCHED_APPT.JOINT_APPT_YN ,
                     F_SCHED_APPT.PHONE_REM_STAT_C ,
 
-                    CASE WHEN F_SCHED_APPT.PHONE_REM_STAT_C IS NULL 
+                    CAST(CASE WHEN F_SCHED_APPT.PHONE_REM_STAT_C IS NULL 
 					       THEN NULL
 						   ELSE
 							   CASE
@@ -216,7 +221,7 @@ SET @locenddate = @enddate
 								   ELSE zcrem.NAME
 								   /* 09/28/18 bug fix end */
                                END 
-                    END AS PHONE_REM_STAT_NAME ,
+                    END AS VARCHAR(254)) AS PHONE_REM_STAT_NAME ,
 
 			--dates/times
                     F_SCHED_APPT.CONTACT_DATE ,
@@ -395,7 +400,7 @@ SET @locenddate = @enddate
                     CLARITY_DEP.SERV_AREA_ID ,
 	
 			 --appt status flag
-					CASE
+					CAST(CASE
 					  WHEN ( F_SCHED_APPT.APPT_STATUS_C = 3 -- Canceled
                                AND (CASE
 					                  WHEN F_SCHED_APPT.CANCEL_REASON_C IS NULL THEN NULL
@@ -418,7 +423,7 @@ SET @locenddate = @enddate
                                    END + ' [' + CONVERT(VARCHAR(254), F_SCHED_APPT.APPT_STATUS_C) + ']'
                            END
 
-					END AS APPT_STATUS_FLAG ,
+					END AS VARCHAR(254)) AS APPT_STATUS_FLAG ,
 
 					PAT_ENC_4.VIS_NEW_TO_SPEC_YN ,
 					PAT_ENC_4.VIS_NEW_TO_SERV_AREA_YN ,
@@ -485,9 +490,8 @@ SET @locenddate = @enddate
 					F_SCHED_APPT.APPT_MADE_DTTM ,
                     'RefreshScheduledAppointment' AS ETL_guid ,
 					CAST(GETDATE() AS DATETIME) AS UPDATE_DATE ,
-					--PROV_ATTR_INFO_OT.BILL_PROV_YN -- VARCHAR(1)																							-- ******* --
-					CASE WHEN PROV_ATTR_INFO_OT.BILL_PROV_YN = 'Y' THEN 1 ELSE 0 END AS BILL_PROV_YN -- INTEGER												-- ******* --																							-- ******* --
-					 
+					CASE WHEN PROV_ATTR_INFO_OT.BILL_PROV_YN = 'Y' THEN 1 ELSE 0 END AS BILL_PROV_YN ,
+					ptot.PROV_TYPE_OT_NAME -- VARCHAR(254)
           FROM      CLARITY.dbo.F_SCHED_APPT AS F_SCHED_APPT
 
 		            INNER JOIN (SELECT DISTINCT CAST(PK_DELIM_STRING AS NUMERIC(18,0)) AS PAT_ENC_CSN_ID    ---BDD 05/21/2019
@@ -542,13 +546,24 @@ SET @locenddate = @enddate
                     LEFT OUTER JOIN CLARITY.dbo.REFERRAL_HIST AS REFERRAL_HIST
 					  ON REFERRAL_HIST.REFERRAL_ID = REFERRAL.REFERRAL_ID   
 					    AND REFERRAL_HIST.CHANGE_TYPE_C  = 1
--------------------
+--------------------
 
-					LEFT OUTER JOIN CLARITY.dbo.PROV_ATTR_INFO_OT AS PROV_ATTR_INFO_OT																		-- ******* --
-					  ON PROV_ATTR_INFO_OT.PROV_ATTR_ID = CLARITY_SER.PROV_ATTR_ID																			-- ******* --
-					    AND PROV_ATTR_INFO_OT.BILL_PROV_YN = 'Y'																							-- ******* --
-						AND F_SCHED_APPT.CONTACT_DATE BETWEEN PROV_ATTR_INFO_OT.CONTACT_DATE AND COALESCE(PROV_ATTR_INFO_OT.CONTACT_TO_DATE,@locenddate)	-- ******* --
+--------------------
+--- TMB 7/25/2019 compare CONTACT_DATE to date ranges where provider is documented as a billing provider
+---               set default value when CONTACT_TO_DATE is NULL
+					LEFT OUTER JOIN CLARITY.dbo.PROV_ATTR_INFO_OT AS PROV_ATTR_INFO_OT
+					  ON PROV_ATTR_INFO_OT.PROV_ATTR_ID = CLARITY_SER.PROV_ATTR_ID
+					    AND PROV_ATTR_INFO_OT.BILL_PROV_YN = 'Y'
+						AND F_SCHED_APPT.CONTACT_DATE BETWEEN PROV_ATTR_INFO_OT.CONTACT_DATE AND COALESCE(PROV_ATTR_INFO_OT.CONTACT_TO_DATE,@locenddate)
+--------------------
+--------------------
 
+--------------------
+--- TMB 1/17/2020 compare CONTACT_DATE to date ranges for OT provider type designation
+					LEFT OUTER JOIN CLARITY_App.Rptg.vwCLARITY_SER_OT_PROV_TYPE AS ptot
+					  ON F_SCHED_APPT.PROV_ID = ptot.PROV_ID
+					    AND F_SCHED_APPT.CONTACT_DATE BETWEEN ptot.CONTACT_DATE AND ptot.EFF_TO_DATE
+--------------------
                     LEFT OUTER JOIN CLARITY.dbo.ZC_MYCHART_STATUS AS ZC_MYCHART_STATUS	
 					  ON ZC_MYCHART_STATUS.MYCHART_STATUS_C = PATIENT_MYC.MYCHART_STATUS_C
                     LEFT OUTER JOIN CLARITY.dbo.ZC_RFL_STATUS AS ZC_RFL_STATUS
@@ -592,11 +607,6 @@ SET @locenddate = @enddate
 					  ON CLARITY_DEP.CENTER_C = zccenter .CENTER_C
 					LEFT OUTER JOIN CLARITY.dbo.ZC_APPT_CONF_STAT AS zcconf
 					  ON F_SCHED_APPT.APPT_CONF_STAT_C = zcconf.APPT_CONF_STAT_C
-
-----filters are handled above in the join to CR_STAT_ALTER
----          WHERE     1 = 1
----                    AND F_SCHED_APPT.APPT_DTTM >= @locstartdate
----                   AND F_SCHED_APPT.APPT_DTTM <  @locenddate
 
 GO
 

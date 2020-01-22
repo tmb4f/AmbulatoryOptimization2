@@ -7,25 +7,12 @@ GO
 SET QUOTED_IDENTIFIER ON
 GO
 
-DECLARE @startdate SMALLDATETIME
-       ,@enddate SMALLDATETIME
-
---SET @startdate = NULL
---SET @enddate = NULL
---SET @startdate = '2/1/2019 00:00 AM'
---SET @enddate = '3/4/2019 11:59 PM'
---SET @startdate = '7/1/2017 00:00 AM'
---SET @startdate = '7/1/2018 00:00 AM'
---SET @enddate = '6/30/2019 11:59 PM'
---SET @startdate = '7/1/2019 00:00 AM'
---SET @enddate = '7/31/2019 11:59 PM'
-
---ALTER PROCEDURE [ETL].[uspSrc_AmbOpt_New_Patient_Appointment_Metric]
---    (
---     @startdate SMALLDATETIME = NULL
---    ,@enddate SMALLDATETIME = NULL
---    )
---AS 
+CREATE PROCEDURE [ETL].[uspSrc_AmbOpt_New_Patient_Appointment_Metric]
+    (
+     @startdate SMALLDATETIME = NULL
+    ,@enddate SMALLDATETIME = NULL
+    )
+AS 
 --/**********************************************************************************************************************
 --WHAT: Create procedure ETL.uspSrc_AmbOpt_New_Patient_Appointment_Metric
 --WHO : Tom Burgan
@@ -81,16 +68,6 @@ SET @locenddate   = @enddate
 
 IF OBJECT_ID('tempdb..#newpt ') IS NOT NULL
 DROP TABLE #newpt
-
---IF OBJECT_ID('tempdb..#newpt2 ') IS NOT NULL
---DROP TABLE #newpt2
-
-IF OBJECT_ID('tempdb..#metric ') IS NOT NULL
-DROP TABLE #metric
-
-IF OBJECT_ID('tempdb..#metric2 ') IS NOT NULL
-DROP TABLE #metric2
-
 
 SELECT newpt2.PAT_ENC_CSN_ID,
        newpt2.APPT_SERIAL_NUM,
@@ -374,12 +351,7 @@ SELECT
 	   evnts.BUSINESS_UNIT,
 	   evnts.Prov_Typ,
 	   evnts.Staff_Resource,
-	   evnts.BILL_PROV_YN,
-	   evnts.APPT_SERIAL_NUM,
-	   evnts.Seq,
-	   evnts.APPT_SERIAL_NUM_COUNT
-
-INTO #metric
+	   evnts.BILL_PROV_YN
 
 FROM
 (
@@ -556,7 +528,6 @@ FROM
             main.APPT_DT,
 			main.Appointment_Lag_Days,
 			main.Appointment_Lag_Business_Days,
-			main.APPT_SERIAL_NUM,
 			main.APPT_SERIAL_NUM_COUNT,
 			main.Seq,
 			main.Last_APPT_STATUS_C,
@@ -594,7 +565,6 @@ FROM
         FROM
         ( --main
 		    SELECT newpt.PAT_ENC_CSN_ID,
-			       newpt.APPT_SERIAL_NUM,
                    newpt.Seq,
                    newpt.APPT_SERIAL_NUM_COUNT,
                    newpt.APPT_STATUS_FLAG,
@@ -897,94 +867,7 @@ FROM
 WHERE date_dim.day_date >= @locstartdate
       AND date_dim.day_date < @locenddate
 
---ORDER BY date_dim.day_date;
-
---SELECT day_date
---     , date_key
---	 , day_of_week_num
---	 , day_of_week
---	 , weekday_ind
---FROM DS_HSDW_Prod.Rptg.vwDim_Date
---ORDER BY day_date
-
---SELECT DISTINCT APPT_SERIAL_NUM
---INTO #metric2
---FROM #metric
---WHERE APPT_SERIAL_NUM_COUNT > 1
---AND AbleToAccess = 0
-
---SELECT *
---FROM #newpt newpt
---INNER JOIN #metric2 metric2
---ON metric2.APPT_SERIAL_NUM = newpt.APPT_SERIAL_NUM
-----ORDER BY APPT_SERIAL_NUM_COUNT,
-----         APPT_SERIAL_NUM,
-----		 Seq
---ORDER BY newpt.APPT_SERIAL_NUM_COUNT,
---         newpt.APPT_SERIAL_NUM,
---		 newpt.Seq
-
---SELECT *
---SELECT APPT_SERIAL_NUM,
---		PAT_ENC_CSN_ID,
---	    --Seq,
---        --APPT_SERIAL_NUM_COUNT,
---        APPT_STATUS_FLAG,
---        APPT_STATUS_C,
---        CANCEL_INITIATOR,
---        APPT_MADE_DTTM,
---        Appointment_Request_Date,
---        APPT_DT,
---        Appointment_Lag_Days,
---        Appointment_Lag_Business_Days,
---		AbleToAccess,
---        --Original_Appointment_Request_Date,
---  --      Last_APPT_STATUS_FLAG,
---  --      Last_Appointment_Request_Date,
---  --      Last_APPT_DT,
---  --      Appointment_Lag_Business_Days_from_Original,
---		--Last_Appointment_Lag_Business_Days_from_Original,
---		--Last_CANCEL_INITIATOR
---        Resch_APPT_STATUS_FLAG,
---        Resch_Appointment_Request_Date,
---        Resch_APPT_DT,
---		Resch_Appointment_Lag_Business_Days_from_Initial_Request,
---		Resch_CANCEL_INITIATOR
-
-SELECT PAT_ENC_CSN_ID,
-       APPT_SERIAL_NUM,
-	   Seq,
-       APPT_SERIAL_NUM_COUNT,
-       APPT_STATUS_FLAG,
-       APPT_STATUS_C,
-	   metric.CANCEL_INITIATOR,
-	   event_count,
-	   AbleToAccess,
-	   metric.Appointment_Lag_Days,
-	   metric.Appointment_Lag_Business_Days,
-	   metric.Resch_APPT_STATUS_C,
-	   metric.Resch_APPT_STATUS_FLAG,
-	   metric.Resch_Appointment_Lag_Business_Days_from_Initial_Request,
-	   metric.Resch_CANCEL_INITIATOR--,
---INTO #metric2
-FROM #metric metric
---WHERE
---	metric.Original_Appointment_Request_Date BETWEEN @locstartdate AND @locenddate
---WHERE APPT_SERIAL_NUM_COUNT > 1
-ORDER BY event_count DESC
-        ,AbleToAccess DESC
-        ,event_date
-		,PAT_ENC_CSN_ID
-		--,APPT_SERIAL_NUM
-		--,APPT_MADE_DTTM
-
---SELECT *
---FROM #metric2
-----WHERE Seq = 1
---ORDER BY AbleToAccess DESC
---        --,APPT_SERIAL_NUM_COUNT
---	    ,APPT_SERIAL_NUM
---		--,Seq
+ORDER BY date_dim.day_date;
 
 GO
 
