@@ -47,6 +47,7 @@ AS
 --       05/10/2019 - TMB - add place-holder columns for w_som_hs_area_id (smallint) and w_som_hs_area_name (VARCHAR(150))
 --       07/19/2019 - TMB - change logic for setting SOM hierarchy values; drop som_division_5 from Stage table
 --       07/29/2019 - TMB - change INSERT column order
+--       02/18/2020 - TMB - add logic to set values for PROVIDER_TYPE_C and PROV_TYPE; add UPG_PRACTICE_... columns
 --************************************************************************************************************************
 
     SET NOCOUNT ON;
@@ -309,6 +310,11 @@ INSERT Stage.AmbOpt_Dash_Slot_Utilization
 		   ,som_hs_area_id
 		   ,som_hs_area_name
            ,BUSINESS_UNIT
+           ,upg_practice_flag -- INTEGER
+           ,upg_practice_region_id -- INTEGER
+           ,upg_practice_region_name -- VARCHAR(150)
+           ,upg_practice_id -- INTEGER
+           ,upg_practice_name -- VARCHAR(150)
 		   )
 SELECT 
        CAST('Slot Utilization' AS VARCHAR(50)) AS event_type
@@ -377,8 +383,8 @@ SELECT
 	  ,util.[Overbook Outside Template Unavailable Booked]
 	  ,ser.STAFF_RESOURCE_C
 	  ,ser.STAFF_RESOURCE
-	  ,ser.PROVIDER_TYPE_C
-	  ,ser.PROV_TYPE
+	  ,COALESCE(ptot.PROV_TYPE_OT_C, ser.PROVIDER_TYPE_C, NULL) AS PROVIDER_TYPE_C
+	  ,COALESCE(ptot.PROV_TYPE_OT_NAME, ser.PROV_TYPE, NULL) AS PROV_TYPE
 
 	  ,mdm.LOC_ID AS rev_location_id
 	  ,mdm.REV_LOC_NAME AS rev_location
@@ -397,6 +403,11 @@ SELECT
 	  ,physcn.som_hs_area_name AS som_hs_area_name
 
 	  ,mdm.BUSINESS_UNIT
+      ,mdm.upg_practice_flag
+      ,mdm.upg_practice_region_id
+      ,mdm.upg_practice_region_name
+      ,mdm.upg_practice_id
+      ,mdm.upg_practice_name
 
 FROM
     #utildatetable AS date_dim
@@ -451,6 +462,8 @@ LEFT OUTER JOIN Stage.AmbOpt_Excluded_Department excl
 ON excl.DEPARTMENT_ID = date_dim.DEPARTMENT_ID
 LEFT OUTER JOIN CLARITY.dbo.CLARITY_SER AS ser
 ON ser.PROV_ID = date_dim.PROV_ID
+LEFT OUTER JOIN Rptg.vwCLARITY_SER_OT_PROV_TYPE ptot
+ON date_dim.PROV_ID = ptot.PROV_ID AND date_dim.day_date BETWEEN ptot.CONTACT_DATE AND ptot.EFF_TO_DATE
 LEFT OUTER JOIN
 (
     SELECT ROW_NUMBER() OVER (PARTITION BY EPIC_DEPARTMENT_ID ORDER BY HS_AREA_ID DESC) AS Seq
@@ -474,6 +487,11 @@ LEFT OUTER JOIN
           ,hs_area_id
           ,hs_area_name
 		  ,BUSINESS_UNIT
+		  ,UPG_PRACTICE_FLAG AS upg_practice_flag
+		  ,CAST(UPG_PRACTICE_REGION_ID AS INTEGER) AS upg_practice_region_id
+		  ,CAST(UPG_PRACTICE_REGION_NAME AS VARCHAR(150)) AS upg_practice_region_name
+		  ,CAST(UPG_PRACTICE_ID AS INTEGER) AS upg_practice_id
+		  ,CAST(UPG_PRACTICE_NAME AS VARCHAR(150)) AS upg_practice_name
 	FROM
     (
         SELECT DISTINCT
@@ -497,6 +515,11 @@ LEFT OUTER JOIN
               ,hs_area_id
               ,hs_area_name
 			  ,BUSINESS_UNIT
+			  ,UPG_PRACTICE_FLAG
+			  ,UPG_PRACTICE_REGION_ID
+			  ,UPG_PRACTICE_REGION_NAME
+			  ,UPG_PRACTICE_ID
+			  ,UPG_PRACTICE_NAME
 	    FROM CLARITY_App.Rptg.vwRef_MDM_Location_Master) mdm_LM
 ) AS mdm
 ON (mdm.EPIC_DEPARTMENT_ID = date_dim.DEPARTMENT_ID) --04/08/2019 -Tom B Use to get LOC_ID and REV_LOC_NAME

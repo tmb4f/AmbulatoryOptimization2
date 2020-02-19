@@ -99,6 +99,8 @@ AS
 --         07/29/2019 - TMB - add column BILL_PROV_YN
 --         08/07/2019 - TMB - edit Appointment_Lag_Business_Days calculation: exclude holidays from business days classification;
 --                            change documentation defining Bump Rate calculation
+--         02/12/2020 - TMB - add logic to set value of Prov_Typ
+--         02/18/2020 - TMB - add UPG_PRACTICE_... columns
 --************************************************************************************************************************
 
     SET NOCOUNT ON;
@@ -260,7 +262,12 @@ SELECT CAST('Appointment' AS VARCHAR(50)) AS event_type,
 	   evnts.RESCHED_APPT_CSN_ID,
 	   evnts.Appointment_Request_Date,
        (SELECT COUNT(*) FROM DS_HSDW_Prod.Rptg.vwDim_Date ddte LEFT OUTER JOIN DS_HSDM_App.Rptg.Holiday_Dates hdte ON hdte.Holiday_Date = ddte.day_date WHERE weekday_ind = 1 AND hdte.Holiday_Date IS NULL AND day_date >= evnts.Appointment_Request_Date AND day_date < evnts.APPT_DT) Appointment_Lag_Business_Days,
-	   evnts.BILL_PROV_YN
+	   evnts.BILL_PROV_YN,
+	   evnts.upg_practice_flag, -- INTEGER
+	   evnts.upg_practice_region_id, -- INTEGER
+	   evnts.upg_practice_region_name, -- VARCHAR(150)
+	   evnts.upg_practice_id, -- INTEGER
+	   evnts.upg_practice_name -- VARCHAR(150)
 
 FROM
 (
@@ -502,7 +509,12 @@ FROM
 			main.som_hs_area_name,
 			main.APPT_SERIAL_NUM,
 			main.RESCHED_APPT_CSN_ID,
-			main.BILL_PROV_YN
+			main.BILL_PROV_YN,
+			main.upg_practice_flag,
+			main.upg_practice_region_id,
+			main.upg_practice_region_name,
+			main.upg_practice_id,
+			main.upg_practice_name
 
         FROM
         ( --main
@@ -611,7 +623,7 @@ FROM
 				   appts.CHANGE_DATE,
 				   appts.APPT_MADE_DTTM,
 				   mdmloc.BUSINESS_UNIT,
-				   ser.Prov_Typ,
+				   COALESCE(appts.PROV_TYPE_OT_NAME, ser.Prov_Typ, NULL) AS Prov_Typ,
 				   ser.Staff_Resource,
 				   mdmloc.LOC_ID AS rev_location_id,
 				   mdmloc.REV_LOC_NAME AS rev_location,				   
@@ -630,7 +642,12 @@ FROM
 				   physcn.som_hs_area_name AS som_hs_area_name,
 				   appts.APPT_SERIAL_NUM,
 				   appts.RESCHED_APPT_CSN_ID,
-				   appts.BILL_PROV_YN
+				   appts.BILL_PROV_YN,
+				   mdmloc.UPG_PRACTICE_FLAG AS upg_practice_flag,
+				   CAST(mdmloc.UPG_PRACTICE_REGION_ID AS INTEGER) AS upg_practice_region_id,
+				   CAST(mdmloc.UPG_PRACTICE_REGION_NAME AS VARCHAR(150)) AS upg_practice_region_name,
+				   CAST(mdmloc.UPG_PRACTICE_ID AS INTEGER) AS upg_practice_id,
+				   CAST(mdmloc.UPG_PRACTICE_NAME AS VARCHAR(150)) AS upg_practice_name
 
             FROM Stage.Scheduled_Appointment AS appts
                 LEFT OUTER JOIN DS_HSDW_Prod.Rptg.vwDim_Clrt_SERsrc ser
@@ -648,7 +665,12 @@ FROM
                         HUB,
 						BUSINESS_UNIT,
 						LOC_ID,
-						REV_LOC_NAME
+						REV_LOC_NAME,
+						UPG_PRACTICE_FLAG,
+						UPG_PRACTICE_REGION_ID,
+						UPG_PRACTICE_REGION_NAME,
+						UPG_PRACTICE_ID,
+						UPG_PRACTICE_NAME	
                     FROM DS_HSDW_Prod.Rptg.vwRef_MDM_Location_Master
                 ) AS mdmloc
                     ON appts.DEPARTMENT_ID = mdmloc.EPIC_DEPARTMENT_ID

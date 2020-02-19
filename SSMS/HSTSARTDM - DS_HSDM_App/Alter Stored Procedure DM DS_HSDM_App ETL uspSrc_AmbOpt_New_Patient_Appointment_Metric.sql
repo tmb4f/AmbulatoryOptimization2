@@ -50,7 +50,8 @@ AS
 --------------------------------------------------------------------------------------------------------------------------
 --MODS: 	
 --         08/01/2019 - TMB - create stored procedure
---         11/08/2019 - TMB - allter stored procedure
+--         11/08/2019 - TMB - alter stored procedure
+--         02/18/2020 - TMB - add logic to set value of Prov_Typ, add UPG_PRACTICE_... columns
 --************************************************************************************************************************
 
     SET NOCOUNT ON;
@@ -66,8 +67,6 @@ DECLARE @locstartdate SMALLDATETIME,
 
 SET @locstartdate = @startdate
 SET @locenddate   = @enddate
-
-
 
 SELECT newpt2.PAT_ENC_CSN_ID,
        newpt2.APPT_SERIAL_NUM,
@@ -211,6 +210,133 @@ FROM
 	WHERE newpt.Original_Appointment_Request_Date BETWEEN @locstartdate AND @locenddate
 ) newpt2
 
+-----------------------------------------------------------------------------------------------------------------------
+---BDD insert to stage table added. Assumes trunc is handled in SSIS package
+INSERT TabRptg.Dash_AmbOpt_NewPatientApptMetric_Tiles
+           ([event_type]
+           ,[event_count]
+           ,[event_date]
+           ,[fmonth_num]
+           ,[Fyear_num]
+           ,[FYear_name]
+           ,[report_period]
+           ,[report_date]
+           ,[event_category]
+           ,[pod_id]
+           ,[pod_name]
+           ,[hub_id]
+           ,[hub_name]
+           ,[epic_department_id]
+           ,[epic_department_name]
+           ,[epic_department_name_external]
+           ,[peds]
+           ,[transplant]
+           ,[sk_Dim_Pt]
+           ,[sk_Fact_Pt_Acct]
+           ,[sk_Fact_Pt_Enc_Clrt]
+           ,[person_birth_date]
+           ,[person_gender]
+           ,[person_id]
+           ,[person_name]
+           ,[practice_group_id]
+           ,[practice_group_name]
+           ,[provider_id]
+           ,[provider_name]
+           ,[service_line_id]
+           ,[service_line]
+           ,[prov_service_line_id]
+           ,[prov_service_line_name]
+           ,[sub_service_line_id]
+           ,[sub_service_line]
+           ,[opnl_service_id]
+           ,[opnl_service_name]
+           ,[corp_service_line_id]
+           ,[corp_service_line_name]
+           ,[hs_area_id]
+           ,[hs_area_name]
+           ,[prov_hs_area_id]
+           ,[prov_hs_area_name]
+           ,[som_group_id]
+           ,[som_group_name]
+           ,[rev_location_id]
+           ,[rev_location]
+           ,[financial_division_id]
+           ,[financial_division_name]
+           ,[financial_sub_division_id]
+           ,[financial_sub_division_name]
+           ,[som_department_id]
+           ,[som_department_name]
+           ,[som_division_id]
+           ,[som_division_name]
+           ,[w_som_hs_area_id]
+           ,[w_som_hs_area_name]
+           ,[AbleToAccess]
+           ,[VIS_NEW_TO_SYS_YN]
+           ,[VIS_NEW_TO_DEP_YN]
+           ,[VIS_NEW_TO_PROV_YN]
+           ,[VIS_NEW_TO_SPEC_YN]
+           ,[VIS_NEW_TO_SERV_AREA_YN]
+           ,[VIS_NEW_TO_LOC_YN]
+           ,[appt_event_No_Show]
+           ,[appt_event_Canceled_Late]
+           ,[appt_event_Canceled]
+           ,[appt_event_Scheduled]
+           ,[appt_event_Provider_Canceled]
+           ,[appt_event_Completed]
+           ,[appt_event_Arrived]
+           ,[appt_event_New_to_Specialty]
+           ,[APPT_STATUS_FLAG]
+           ,[APPT_STATUS_C]
+           ,[CANCEL_REASON_C]
+           ,[APPT_CANC_DTTM]
+           ,[CANCEL_REASON_NAME]
+           ,[CANCEL_INITIATOR]
+           ,[CANCEL_LEAD_HOURS]
+           ,[Cancel_Lead_Days]
+           ,[APPT_MADE_DTTM]
+           ,[APPT_MADE_DATE]
+           ,[ENTRY_DATE]
+           ,[CHANGE_DATE]
+           ,[Appointment_Request_Date]
+           ,[APPT_DTTM]
+           ,[APPT_DT]
+           ,[Appointment_Lag_Days]
+           ,[Appointment_Lag_Business_Days]
+           ,[Resch_APPT_STATUS_C]
+           ,[Resch_APPT_STATUS_FLAG]
+           ,[Resch_CANCEL_INITIATOR]
+           ,[Resch_Appointment_Request_Date]
+           ,[Resch_APPT_DT]
+           ,[Resch_Appointment_Lag_Business_Days_from_Initial_Request]
+           ,[MRN_int]
+           ,[CONTACT_DATE]
+           ,[PAT_ENC_CSN_ID]
+           ,[PRC_ID]
+           ,[PRC_NAME]
+           ,[sk_Dim_Physcn]
+           ,[UVaID]
+           ,[DEPT_SPECIALTY_NAME]
+           ,[PROV_SPECIALTY_NAME]
+           ,[ENC_TYPE_C]
+           ,[ENC_TYPE_TITLE]
+           ,[APPT_CONF_STAT_NAME]
+           ,[ZIP]
+           ,[APPT_CONF_DTTM]
+           ,[financial_division]
+           ,[financial_subdivision]
+           ,[F2F_Flag]
+           ,[Entry_UVaID]
+           ,[Canc_UVaID]
+           ,[PHONE_REM_STAT_NAME]
+           ,[BUSINESS_UNIT]
+           ,[Prov_Typ]
+           ,[Staff_Resource]
+           ,[BILL_PROV_YN]
+	       ,[upg_practice_flag]
+		   ,[upg_practice_region_id]
+		   ,[upg_practice_region_name]
+		   ,[upg_practice_id]
+		   ,[upg_practice_name])
 SELECT 
 	   CAST('New Patient Appointment' AS VARCHAR(50)) AS event_type,
        CASE
@@ -351,7 +477,12 @@ SELECT
 	   evnts.BUSINESS_UNIT,
 	   evnts.Prov_Typ,
 	   evnts.Staff_Resource,
-	   evnts.BILL_PROV_YN
+	   evnts.BILL_PROV_YN,
+	   evnts.upg_practice_flag, -- INTEGER
+	   evnts.upg_practice_region_id, -- INTEGER
+	   evnts.upg_practice_region_name, -- VARCHAR(150)
+	   evnts.upg_practice_id, -- INTEGER
+	   evnts.upg_practice_name -- VARCHAR(150)
 
 FROM
 (
@@ -560,7 +691,12 @@ FROM
 			main.BUSINESS_UNIT,
 		    main.Prov_Typ,
 			main.Staff_Resource,
-			main.BILL_PROV_YN
+			main.BILL_PROV_YN,
+			main.upg_practice_flag,
+			main.upg_practice_region_id,
+			main.upg_practice_region_name,
+			main.upg_practice_id,
+			main.upg_practice_name
 
         FROM
         ( --main
@@ -674,7 +810,13 @@ FROM
                    sched.som_division_name,
                    sched.som_hs_area_id,
                    sched.som_hs_area_name,
-                   sched.BILL_PROV_YN
+                   sched.BILL_PROV_YN,
+			       sched.upg_practice_flag,
+			       sched.upg_practice_region_id,
+			       sched.upg_practice_region_name,
+			       sched.upg_practice_id,
+			       sched.upg_practice_name
+
 			FROM #newpt newpt
 			INNER JOIN
 			(
@@ -764,7 +906,7 @@ FROM
 					   appts.PHONE_REM_STAT_NAME,
 					   appts.CHANGE_DATE,
 					   mdmloc.BUSINESS_UNIT,
-					   ser.Prov_Typ,
+				       COALESCE(appts.PROV_TYPE_OT_NAME, ser.Prov_Typ, NULL) AS Prov_Typ,
 					   ser.Staff_Resource,
 					   mdmloc.LOC_ID AS rev_location_id,
 					   mdmloc.REV_LOC_NAME AS rev_location,				   
@@ -781,9 +923,13 @@ FROM
 					   physcn.SOM_division_name AS som_division_name,
 					   physcn.som_hs_area_id AS	som_hs_area_id,
 					   physcn.som_hs_area_name AS som_hs_area_name,
-					   --appts.APPT_SERIAL_NUM,
 					   appts.RESCHED_APPT_CSN_ID,
-					   appts.BILL_PROV_YN
+					   appts.BILL_PROV_YN,
+				       mdmloc.UPG_PRACTICE_FLAG AS upg_practice_flag,
+				       CAST(mdmloc.UPG_PRACTICE_REGION_ID AS INTEGER) AS upg_practice_region_id,
+				       CAST(mdmloc.UPG_PRACTICE_REGION_NAME AS VARCHAR(150)) AS upg_practice_region_name,
+				       CAST(mdmloc.UPG_PRACTICE_ID AS INTEGER) AS upg_practice_id,
+				       CAST(mdmloc.UPG_PRACTICE_NAME AS VARCHAR(150)) AS upg_practice_name
 
 				FROM Stage.Scheduled_Appointment AS appts
 					LEFT OUTER JOIN DS_HSDW_Prod.Rptg.vwDim_Clrt_SERsrc ser
@@ -801,7 +947,12 @@ FROM
 							HUB,
 							BUSINESS_UNIT,
 							LOC_ID,
-							REV_LOC_NAME
+							REV_LOC_NAME,
+						    UPG_PRACTICE_FLAG,
+						    UPG_PRACTICE_REGION_ID,
+						    UPG_PRACTICE_REGION_NAME,
+						    UPG_PRACTICE_ID,
+						    UPG_PRACTICE_NAME
 						FROM DS_HSDW_Prod.Rptg.vwRef_MDM_Location_Master
 					) AS mdmloc
 						ON appts.DEPARTMENT_ID = mdmloc.EPIC_DEPARTMENT_ID

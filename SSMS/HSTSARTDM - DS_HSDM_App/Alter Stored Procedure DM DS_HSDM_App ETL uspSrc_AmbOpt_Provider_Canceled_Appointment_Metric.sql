@@ -7,24 +7,12 @@ GO
 SET QUOTED_IDENTIFIER ON
 GO
 
-DECLARE @startdate SMALLDATETIME
-       ,@enddate SMALLDATETIME
-
-SET @startdate = NULL
-SET @enddate = NULL
---SET @startdate = '2/1/2019 00:00 AM'
---SET @enddate = '3/4/2019 11:59 PM'
---SET @startdate = '7/1/2017 00:00 AM'
---SET @startdate = '1/1/2018 00:00 AM'
---SET @startdate = '7/1/2019 00:00 AM'
---SET @enddate = '6/30/2020 11:59 PM'
-
---ALTER PROCEDURE [ETL].[uspSrc_AmbOpt_Provider_Canceled_Appointment_Metric]
---    (
---     @startdate SMALLDATETIME = NULL
---    ,@enddate SMALLDATETIME = NULL
---    )
---AS 
+ALTER PROCEDURE [ETL].[uspSrc_AmbOpt_Provider_Canceled_Appointment_Metric]
+    (
+     @startdate SMALLDATETIME = NULL
+    ,@enddate SMALLDATETIME = NULL
+    )
+AS 
 --/**********************************************************************************************************************
 --WHAT: Create procedure ETL.uspSrc_AmbOpt_Provider_Canceled_Appointment_Metric
 --WHO : Tom Burgan
@@ -94,12 +82,6 @@ DECLARE @locstartdate SMALLDATETIME,
 
 SET @locstartdate = @startdate
 SET @locenddate   = @enddate
-
-IF OBJECT_ID('tempdb..#main ') IS NOT NULL
-DROP TABLE #main
-
-IF OBJECT_ID('tempdb..#metric ') IS NOT NULL
-DROP TABLE #metric
 
 SELECT evnts2.*
      , SUM(evnts2.Bump) OVER (PARTITION BY evnts2.APPT_SERIAL_NUM ORDER BY evnts2.APPT_SERIAL_NUM) AS ASN_Bumps
@@ -332,7 +314,6 @@ FROM
 					appts.PHONE_REM_STAT_NAME,
 					appts.CHANGE_DATE,
 					appts.APPT_MADE_DTTM,
-				    --ser.Prov_Typ,
 				    COALESCE(appts.PROV_TYPE_OT_NAME, ser.Prov_Typ, NULL) AS Prov_Typ,
 					ser.Staff_Resource,
 					appts.APPT_SERIAL_NUM,
@@ -402,120 +383,121 @@ ORDER BY
 
 CREATE NONCLUSTERED INDEX IX_NC ON #main (APPT_DT, epic_department_id, sk_Dim_Physcn)
 
+
 ----------------------------------------------------------------------------------------------------------------------------------------
 ---BDD 12/16/2019 added insert direct to TabRptg table. Assumes Truncate will be handled in the SSIS package.
---INSERT TabRptg.Dash_AmbOpt_ProvCancApptMetric_Tiles
---           ([event_type]
---           ,[event_count]
---           ,[event_date]
---           ,[fmonth_num]
---           ,[Fyear_num]
---           ,[FYear_name]
---           ,[report_period]
---           ,[report_date]
---           ,[event_category]
---           ,[pod_id]
---           ,[pod_name]
---           ,[hub_id]
---           ,[hub_name]
---           ,[epic_department_id]
---           ,[epic_department_name]
---           ,[epic_department_name_external]
---           ,[peds]
---           ,[transplant]
---           ,[sk_Dim_Pt]
---           ,[sk_Fact_Pt_Acct]
---           ,[sk_Fact_Pt_Enc_Clrt]
---           ,[person_birth_date]
---           ,[person_gender]
---           ,[person_id]
---           ,[person_name]
---           ,[practice_group_id]
---           ,[practice_group_name]
---           ,[provider_id]
---           ,[provider_name]
---           ,[service_line_id]
---           ,[service_line]
---           ,[prov_service_line_id]
---           ,[prov_service_line]
---           ,[sub_service_line_id]
---           ,[sub_service_line]
---           ,[opnl_service_id]
---           ,[opnl_service_name]
---           ,[corp_service_line_id]
---           ,[corp_service_line_name]
---           ,[hs_area_id]
---           ,[hs_area_name]
---           ,[prov_hs_area_id]
---           ,[prov_hs_area_name]
---           ,[APPT_STATUS_FLAG]
---           ,[CANCEL_REASON_C]
---           ,[APPT_DT]
---           ,[Next_APPT_DT]
---           ,[Rescheduled_Lag_Days]
---           ,[PAT_ENC_CSN_ID]
---           ,[PRC_ID]
---           ,[PRC_NAME]
---           ,[sk_Dim_Physcn]
---           ,[UVaID]
---           ,[VIS_NEW_TO_SYS_YN]
---           ,[VIS_NEW_TO_DEP_YN]
---           ,[VIS_NEW_TO_PROV_YN]
---           ,[VIS_NEW_TO_SPEC_YN]
---           ,[VIS_NEW_TO_SERV_AREA_YN]
---           ,[VIS_NEW_TO_LOC_YN]
---           ,[APPT_MADE_DATE]
---           ,[ENTRY_DATE]
---           ,[appt_event_No_Show]
---           ,[appt_event_Canceled_Late]
---           ,[appt_event_Canceled]
---           ,[appt_event_Scheduled]
---           ,[appt_event_Provider_Canceled]
---           ,[appt_event_Completed]
---           ,[appt_event_Arrived]
---           ,[appt_event_New_to_Specialty]
---           ,[Appointment_Lag_Days]
---           ,[DEPT_SPECIALTY_NAME]
---           ,[PROV_SPECIALTY_NAME]
---           ,[APPT_DTTM]
---           ,[CANCEL_REASON_NAME]
---           ,[financial_division]
---           ,[financial_subdivision]
---           ,[CANCEL_INITIATOR]
---           ,[CANCEL_LEAD_HOURS]
---           ,[APPT_CANC_DTTM]
---           ,[Entry_UVaID]
---           ,[Canc_UVaID]
---           ,[PHONE_REM_STAT_NAME]
---           ,[Cancel_Lead_Days]
---           ,[APPT_MADE_DTTM]
---           ,[Prov_Typ]
---           ,[Staff_Resource]
---           ,[som_group_id]
---           ,[som_group_name]
---           ,[rev_location_id]
---           ,[rev_location]
---           ,[financial_division_id]
---           ,[financial_division_name]
---           ,[financial_sub_division_id]
---           ,[financial_sub_division_name]
---           ,[som_department_id]
---           ,[som_department_name]
---           ,[som_division_id]
---           ,[som_division_name]
---           ,[w_som_hs_area_id]
---           ,[w_som_hs_area_name]
---           ,[APPT_SERIAL_NUM]
---           ,[Appointment_Request_Date]
---           ,[BILL_PROV_YN]
---           ,[Bump]
---           ,[Appointment]
---           ,[sched.upg_practice_flag]
---           ,[upg_practice_region_id]
---           ,[upg_practice_region_name]
---           ,[upg_practice_id]
---           ,[upg_practice_name]
---		   )
+INSERT TabRptg.Dash_AmbOpt_ProvCancApptMetric_Tiles
+           ([event_type]
+           ,[event_count]
+           ,[event_date]
+           ,[fmonth_num]
+           ,[Fyear_num]
+           ,[FYear_name]
+           ,[report_period]
+           ,[report_date]
+           ,[event_category]
+           ,[pod_id]
+           ,[pod_name]
+           ,[hub_id]
+           ,[hub_name]
+           ,[epic_department_id]
+           ,[epic_department_name]
+           ,[epic_department_name_external]
+           ,[peds]
+           ,[transplant]
+           ,[sk_Dim_Pt]
+           ,[sk_Fact_Pt_Acct]
+           ,[sk_Fact_Pt_Enc_Clrt]
+           ,[person_birth_date]
+           ,[person_gender]
+           ,[person_id]
+           ,[person_name]
+           ,[practice_group_id]
+           ,[practice_group_name]
+           ,[provider_id]
+           ,[provider_name]
+           ,[service_line_id]
+           ,[service_line]
+           ,[prov_service_line_id]
+           ,[prov_service_line]
+           ,[sub_service_line_id]
+           ,[sub_service_line]
+           ,[opnl_service_id]
+           ,[opnl_service_name]
+           ,[corp_service_line_id]
+           ,[corp_service_line_name]
+           ,[hs_area_id]
+           ,[hs_area_name]
+           ,[prov_hs_area_id]
+           ,[prov_hs_area_name]
+           ,[APPT_STATUS_FLAG]
+           ,[CANCEL_REASON_C]
+           ,[APPT_DT]
+           ,[Next_APPT_DT]
+           ,[Rescheduled_Lag_Days]
+           ,[PAT_ENC_CSN_ID]
+           ,[PRC_ID]
+           ,[PRC_NAME]
+           ,[sk_Dim_Physcn]
+           ,[UVaID]
+           ,[VIS_NEW_TO_SYS_YN]
+           ,[VIS_NEW_TO_DEP_YN]
+           ,[VIS_NEW_TO_PROV_YN]
+           ,[VIS_NEW_TO_SPEC_YN]
+           ,[VIS_NEW_TO_SERV_AREA_YN]
+           ,[VIS_NEW_TO_LOC_YN]
+           ,[APPT_MADE_DATE]
+           ,[ENTRY_DATE]
+           ,[appt_event_No_Show]
+           ,[appt_event_Canceled_Late]
+           ,[appt_event_Canceled]
+           ,[appt_event_Scheduled]
+           ,[appt_event_Provider_Canceled]
+           ,[appt_event_Completed]
+           ,[appt_event_Arrived]
+           ,[appt_event_New_to_Specialty]
+           ,[Appointment_Lag_Days]
+           ,[DEPT_SPECIALTY_NAME]
+           ,[PROV_SPECIALTY_NAME]
+           ,[APPT_DTTM]
+           ,[CANCEL_REASON_NAME]
+           ,[financial_division]
+           ,[financial_subdivision]
+           ,[CANCEL_INITIATOR]
+           ,[CANCEL_LEAD_HOURS]
+           ,[APPT_CANC_DTTM]
+           ,[Entry_UVaID]
+           ,[Canc_UVaID]
+           ,[PHONE_REM_STAT_NAME]
+           ,[Cancel_Lead_Days]
+           ,[APPT_MADE_DTTM]
+           ,[Prov_Typ]
+           ,[Staff_Resource]
+           ,[som_group_id]
+           ,[som_group_name]
+           ,[rev_location_id]
+           ,[rev_location]
+           ,[financial_division_id]
+           ,[financial_division_name]
+           ,[financial_sub_division_id]
+           ,[financial_sub_division_name]
+           ,[som_department_id]
+           ,[som_department_name]
+           ,[som_division_id]
+           ,[som_division_name]
+           ,[w_som_hs_area_id]
+           ,[w_som_hs_area_name]
+           ,[APPT_SERIAL_NUM]
+           ,[Appointment_Request_Date]
+           ,[BILL_PROV_YN]
+           ,[Bump]
+           ,[Appointment]
+           ,[sched.upg_practice_flag] -- INTEGER
+           ,[upg_practice_region_id] -- INTEGER
+           ,[upg_practice_region_name] -- VARCHAR(150)
+           ,[upg_practice_id] -- INTEGER
+           ,[upg_practice_name] -- VARCHAR(150)
+		   )
 SELECT CAST('CanceledByProvider' AS VARCHAR(50)) AS event_type,
        rpt.event_count,
 	   rpt.event_date,
@@ -628,7 +610,7 @@ SELECT CAST('CanceledByProvider' AS VARCHAR(50)) AS event_type,
 	   CAST(mdmloc.UPG_PRACTICE_ID AS INTEGER) AS upg_practice_id,
 	   CAST(mdmloc.UPG_PRACTICE_NAME AS VARCHAR(150)) AS upg_practice_name
 
-INTO #metric
+--INTO #metric
 
 FROM
 (
@@ -880,7 +862,7 @@ LEFT OUTER JOIN
 		UPG_PRACTICE_REGION_ID,
 		UPG_PRACTICE_REGION_NAME,
 		UPG_PRACTICE_ID,
-		UPG_PRACTICE_NAME	
+		UPG_PRACTICE_NAME
 	FROM DS_HSDW_Prod.Rptg.vwRef_MDM_Location_Master
 ) AS mdmloc
 ON mdmloc.EPIC_DEPARTMENT_ID = rpt.epic_department_id
@@ -906,26 +888,6 @@ LEFT OUTER JOIN DS_HSDW_Prod.Rptg.vwRef_Service_Line physsvc
 LEFT OUTER JOIN DS_HSDW_Prod.Rptg.vwRef_Physcn_Combined physcn
 	ON physcn.sk_Dim_Physcn = doc.sk_Dim_Physcn
 ORDER BY rpt.event_category, rpt.event_date, rpt.pod_id, rpt.hub_id, rpt.epic_department_id, rpt.provider_id;
-
-SELECT *
---SELECT event_category
---      ,APPT_SERIAL_NUM
---	  ,APPT_MADE_DTTM
---	  ,event_count
---	  ,Bump
---	  ,Appointment
---	  ,APPT_DT
---	  ,Next_APPT_DT
---	  ,Rescheduled_Lag_Days
---	  ,APPT_STATUS_FLAG
---	  ,CANCEL_INITIATOR
---	  ,Cancel_Lead_Days
---	  ,appt_event_Provider_Canceled
-FROM #metric
---WHERE event_category = 'Detail'
-ORDER BY event_category
-        ,APPT_SERIAL_NUM
-		,APPT_MADE_DTTM
 
 GO
 

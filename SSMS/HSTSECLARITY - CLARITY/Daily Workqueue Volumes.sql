@@ -59,9 +59,9 @@ DECLARE @startdate SMALLDATETIME = NULL
 
 	--SET @enddate = '4/25/2018 00:00 AM'
 
-	SET @startdate = '11/1/2018 00:00 AM'
+	SET @startdate = '7/1/2018 00:00 AM'
 
-	SET @enddate = '2/12/2019 00:00 AM'
+	SET @enddate = '1/29/2020 00:00 AM'
  
  
 -------------------------------------------------------------------------------
